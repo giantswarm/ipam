@@ -25,10 +25,10 @@ func Next(network net.IPNet) net.IPNet {
 	// Convert IP to decimal.
 	ipDecimal := binary.BigEndian.Uint32(network.IP)
 
-	// Add size of network to decimal IP.
+	// Add size of network to ip.
 	startOfNextRangeDecimal := uint32(ipDecimal) + addresses
 
-	// Convert IP back to IPNet
+	// Convert decimal back to byte slice.
 	startOfNextRangeIP := make(net.IP, 4)
 	binary.BigEndian.PutUint32(startOfNextRangeIP, startOfNextRangeDecimal)
 
