@@ -1,15 +1,30 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"math"
 	"net"
 )
 
-// IPNetEqual returns true if both IPNets given are equal.
-func IPNetEqual(a, b net.IPNet) bool {
-	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
+// IPToDecimal converts a net.IP to a uint32.
+func IPToDecimal(ip net.IP) uint32 {
+	return binary.BigEndian.Uint32(ip)
+}
+
+// DecimalToIP converts a uint32 to a net.IP.
+func DecimalToIP(ip uint32) net.IP {
+	t := make(net.IP, 4)
+	binary.BigEndian.PutUint32(t, ip)
+
+	return t
+}
+
+// Size takes a mask, and returns the number of addresses.
+func Size(mask net.IPMask) uint32 {
+	ones, _ := mask.Size()
+	size := uint32(math.Pow(2, float64(32-ones)))
+
+	return size
 }
 
 // Next takes an IPNet, and returns the IPNet that is contigous.
@@ -18,27 +33,31 @@ func IPNetEqual(a, b net.IPNet) bool {
 // IPv4 address space (e.g: 255.255.255.0/24), the 'next' network
 // will be at the start of the IPv4 address space (e.g: 0.0.0.0/24).
 func Next(network net.IPNet) net.IPNet {
-	// Calculate size of network.
-	ones, _ := network.Mask.Size()
-	addresses := uint32(math.Pow(2, float64(32-ones)))
+	next := DecimalToIP(
+		IPToDecimal(network.IP) + Size(network.Mask),
+	)
 
-	// Convert IP to decimal.
-	ipDecimal := binary.BigEndian.Uint32(network.IP)
-
-	// Add size of network to ip.
-	startOfNextRangeDecimal := uint32(ipDecimal) + addresses
-
-	// Convert decimal back to byte slice.
-	startOfNextRangeIP := make(net.IP, 4)
-	binary.BigEndian.PutUint32(startOfNextRangeIP, startOfNextRangeDecimal)
-
-	// Create new network with next IP, and original mask.
 	nextNetwork := net.IPNet{
-		IP:   startOfNextRangeIP,
+		IP:   next,
 		Mask: network.Mask,
 	}
 
 	return nextNetwork
+}
+
+// Spaces takes two IPNets, and a mask. If a network of the size given by the
+// mask would fit between the two supplied networks, true is returned,
+// false otherwise.
+// e.g: 10.4.0.0/24, 10.4.2.0/24, /24 has space.
+func Space(a, b net.IPNet, mask net.IPMask) bool {
+	aIPDecimal := binary.BigEndian.Uint32(a.IP)
+	bIPDeciaml := binary.BigEndian.Uint32(b.IP)
+
+	size := Size(mask)
+
+	hasSpace := aIPDecimal+size < bIPDeciaml
+
+	return hasSpace
 }
 
 // Free takes a network, a mask, and a list of networks.
@@ -59,17 +78,14 @@ func Free(network net.IPNet, mask net.IPMask, existing []net.IPNet) (net.IPNet, 
 	// For every existing network
 	for _, existingNetwork := range existing {
 		// we check if the networks match (this assumes we only have networks of the same range)
-		if !IPNetEqual(net.IPNet{IP: network.IP, Mask: mask}, existingNetwork) {
+		if !n.IP.Equal(existingNetwork.IP) {
 			// If they do not, this range is free
 			return n, nil
 		}
 
 		// We then increment the network IP to the start of the next range
-		// this currently is only correct for /24
-		network.IP[2]++
+		n = Next(n)
 	}
-
-	// TODO: Assert that returned IPNet has mask matching 'mask'
 
 	return n, nil
 }
