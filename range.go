@@ -5,7 +5,24 @@ import (
 	"encoding/binary"
 	"math"
 	"net"
+	"sort"
+
+	"github.com/giantswarm/microerror"
 )
+
+type IPNets []net.IPNet
+
+func (s IPNets) Len() int {
+	return len(s)
+}
+
+func (s IPNets) Less(i, j int) bool {
+	return IPToDecimal(s[i].IP) < IPToDecimal(s[j].IP)
+}
+
+func (s IPNets) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
 
 // IPToDecimal converts a net.IP to a uint32.
 func IPToDecimal(ip net.IP) uint32 {
@@ -51,59 +68,95 @@ func Next(network net.IPNet) net.IPNet {
 	return nextNetwork
 }
 
-// Spaces takes two IPNets, and a mask. If a network of the size given by the
-// mask would fit between the two supplied networks, true is returned,
-// false otherwise.
-// e.g: 10.4.0.0/24, 10.4.2.0/24, /24 has space.
-func Space(a, b net.IPNet, mask net.IPMask) bool {
-	return IPToDecimal(a.IP)+Size(a.Mask)+Size(mask) <= IPToDecimal(b.IP)
+// Boundaries takes a network, and a list of networks. A list of the IP addresses,
+// as uint32 is returned. The start and end of the first supplied networks are the
+// first and last entries, with each networks first and last IPs between.
+func Boundaries(network net.IPNet, existing []net.IPNet) ([]uint32, error) {
+	// TODO: Remove `Next` from here, we can have an actual function,
+	// and drop `Next` entirely.
+
+	boundaries := []uint32{
+		IPToDecimal(network.IP),
+	}
+
+	for _, existingNetwork := range existing {
+		start := IPToDecimal(existingNetwork.IP)
+		end := IPToDecimal(Next(existingNetwork).IP)
+		end--
+
+		boundaries = append(boundaries, start, end)
+	}
+
+	end := IPToDecimal(Next(network).IP)
+	end--
+	boundaries = append(boundaries, end)
+
+	// Invariant: There should be an even number of boundaries.
+	if len(boundaries)%2 != 0 {
+		panic("incorrect number of points") // TODO: microerror
+	}
+
+	return boundaries, nil
 }
 
 // Free takes a network, a mask, and a list of networks.
 // An available network, within the first network, is returned.
 // fragmented is defined as not having a contigous set of ipnets
 func Free(network net.IPNet, mask net.IPMask, existing []net.IPNet) (net.IPNet, error) {
-	// TODO: check mask larger than network.
-	// TODO: test existing not ordered
 	// TODO: test full
 
-	numExisting := len(existing)
-
-	// Define the initial network for the search as the original network,
-	// with the mask we want.
 	n := net.IPNet{IP: network.IP, Mask: mask}
 
-	// If there is only one existing network,
-	if numExisting == 1 {
-		// Check that the existing network does not match the initial network,
-		if network.IP.Equal(existing[0].IP) {
-			// if it does, use the next one.
-			n = Next(n)
+	if Size(network.Mask) < Size(mask) {
+		return n, microerror.Maskf(
+			maskTooBigError, "have: %v, requested: %v", network.Mask, mask,
+		)
+	}
+
+	sort.Sort(IPNets(existing))
+
+	boundaries, err := Boundaries(network, existing)
+	if err != nil {
+		return n, microerror.Mask(err)
+	}
+
+	type pair struct {
+		start uint32
+		end   uint32
+	}
+
+	pairs := []pair{}
+	for i := 0; i < len(boundaries)-1; i = i + 2 {
+		pairs = append(pairs, pair{start: boundaries[i], end: boundaries[i+1]})
+	}
+
+	for _, pair := range pairs {
+		if pair.end-pair.start >= Size(mask) {
+			x := pair.start
+			n.IP = DecimalToIP(x)
+			break
 		}
 	}
 
-	// If there is more than one existing network,
-	if numExisting > 1 {
-		// Loop over each network.
-		for i := 0; i < numExisting; i++ {
-			// Advance to the next available network,
-			// taking care to advance to the end of the current network
-			// being checked, instead of just incrementing the network.
-			n = net.IPNet{IP: Next(existing[i]).IP, Mask: mask}
-
-			// If we have one more network ahead of the search.
-			if i < numExisting-1 {
-				// Check if we can fit n between the two networks.
-				if Space(existing[i], existing[i+1], mask) {
-					// And quit if we can.
-					break
-				}
-			}
-		}
+	// Invariant: The IP of the network returned should not be nil.
+	if n.IP == nil {
+		return n, microerror.Mask(nilIPError)
 	}
 
+	// Invariant: The IP of the network returned should be contained
+	// within the network supplied.
+	if !network.Contains(n.IP) {
+		return n, microerror.Maskf(
+			ipNotContainedError, "%v is not contained by %v", n.IP, network,
+		)
+	}
+
+	// Invariant: The mask of the network returned should be equal to
+	// the mask supplied as an argument.
 	if !bytes.Equal(mask, n.Mask) {
-		panic("mask incorrect size") // TODO: microerror
+		return n, microerror.Maskf(
+			maskIncorrectSizeError, "have: %v, requested: %v", n.Mask, mask,
+		)
 	}
 
 	return n, nil
