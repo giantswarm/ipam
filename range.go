@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"math"
 	"net"
@@ -8,7 +9,12 @@ import (
 
 // IPToDecimal converts a net.IP to a uint32.
 func IPToDecimal(ip net.IP) uint32 {
-	return binary.BigEndian.Uint32(ip)
+	t := ip
+	if len(ip) == 16 {
+		t = ip[12:16]
+	}
+
+	return binary.BigEndian.Uint32(t)
 }
 
 // DecimalToIP converts a uint32 to a net.IP.
@@ -50,41 +56,54 @@ func Next(network net.IPNet) net.IPNet {
 // false otherwise.
 // e.g: 10.4.0.0/24, 10.4.2.0/24, /24 has space.
 func Space(a, b net.IPNet, mask net.IPMask) bool {
-	aIPDecimal := binary.BigEndian.Uint32(a.IP)
-	bIPDeciaml := binary.BigEndian.Uint32(b.IP)
-
-	size := Size(mask)
-
-	hasSpace := aIPDecimal+size < bIPDeciaml
-
-	return hasSpace
+	return IPToDecimal(a.IP)+Size(a.Mask)+Size(mask) <= IPToDecimal(b.IP)
 }
 
 // Free takes a network, a mask, and a list of networks.
 // An available network, within the first network, is returned.
 // fragmented is defined as not having a contigous set of ipnets
 func Free(network net.IPNet, mask net.IPMask, existing []net.IPNet) (net.IPNet, error) {
-	// TODO: check network is not nil.
-	// TODO: check mask is not nil.
-	// TODO: check existing is not nil.
 	// TODO: check mask larger than network.
+	// TODO: test existing not ordered
+	// TODO: test full
 
-	// Do we assume existing is ordered? How do we order?
+	numExisting := len(existing)
 
-	// Every IPNet we return will have the supplied mask, so this can be ignored.
-	// We start the network IP at the network IP.
+	// Define the initial network for the search as the original network,
+	// with the mask we want.
 	n := net.IPNet{IP: network.IP, Mask: mask}
 
-	// For every existing network
-	for _, existingNetwork := range existing {
-		// we check if the networks match (this assumes we only have networks of the same range)
-		if !n.IP.Equal(existingNetwork.IP) {
-			// If they do not, this range is free
-			return n, nil
+	// If there is only one existing network,
+	if numExisting == 1 {
+		// Check that the existing network does not match the initial network,
+		if network.IP.Equal(existing[0].IP) {
+			// if it does, use the next one.
+			n = Next(n)
 		}
+	}
 
-		// We then increment the network IP to the start of the next range
-		n = Next(n)
+	// If there is more than one existing network,
+	if numExisting > 1 {
+		// Loop over each network.
+		for i := 0; i < numExisting; i++ {
+			// Advance to the next available network,
+			// taking care to advance to the end of the current network
+			// being checked, instead of just incrementing the network.
+			n = net.IPNet{IP: Next(existing[i]).IP, Mask: mask}
+
+			// If we have one more network ahead of the search.
+			if i < numExisting-1 {
+				// Check if we can fit n between the two networks.
+				if Space(existing[i], existing[i+1], mask) {
+					// And quit if we can.
+					break
+				}
+			}
+		}
+	}
+
+	if !bytes.Equal(mask, n.Mask) {
+		panic("mask incorrect size") // TODO: microerror
 	}
 
 	return n, nil

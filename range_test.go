@@ -20,6 +20,10 @@ func TestIPToDecimal(t *testing.T) {
 			ip:              "10.4.0.0",
 			expectedDecimal: 168034304,
 		},
+		{
+			ip:              "255.255.255.255",
+			expectedDecimal: 4294967295,
+		},
 	}
 
 	for index, test := range tests {
@@ -178,25 +182,41 @@ func TestSpace(t *testing.T) {
 	}{
 		// Test a simple case.
 		{
-			a:        "10.4.0.0/24",
-			b:        "10.4.1.0/24",
-			mask:     24,
+			a:        "10.4.0.0/24", // 10.4.0.0 - 10.4.0.255
+			b:        "10.4.1.0/24", // 10.4.1.0 - 10.4.1.255
+			mask:     24,            // 256
 			expected: false,
 		},
 
 		// Test a second simple case.
 		{
-			a:        "10.4.0.0/24",
-			b:        "10.4.2.0/24",
-			mask:     24,
+			a:        "10.4.0.0/24", // 10.4.0.0 - 10.4.0.255
+			b:        "10.4.2.0/24", // 10.4.2.0 - 10.4.2.255
+			mask:     24,            // 256
 			expected: true,
 		},
 
 		// Test a case where the mask is bigger than the space.
 		{
+			a:        "10.4.0.0/24", // 10.4.0.0 - 10.4.0.255
+			b:        "10.4.2.0/24", // 10.4.2.0 - 10.4.2.255
+			mask:     23,            // 512
+			expected: false,
+		},
+
+		// Test a failing case found in testing.
+		{
+			a:        "10.4.0.0/26",  // 10.4.0.0 - 10.4.0.63
+			b:        "10.4.0.64/28", // 10.4.0.64 - 10.4.0.79
+			mask:     29,             // 8
+			expected: false,
+		},
+
+		// Test a case where we attempt to fit at the start of a range.
+		{
 			a:        "10.4.0.0/24",
-			b:        "10.4.2.0/24",
-			mask:     23,
+			b:        "10.4.0.0/24",
+			mask:     24,
 			expected: false,
 		},
 	}
@@ -268,6 +288,27 @@ func TestFree(t *testing.T) {
 			expectedError:   nil,
 		},
 
+		// Test that a network with an existing subnet, that is fragmented,
+		// and can fit one network before, returns the correct subnet,
+		// given a smaller mask.
+		{
+			network:         "10.4.0.0/16",
+			mask:            25,
+			existing:        []string{"10.4.1.0/24"},
+			expectedNetwork: "10.4.0.0/25",
+			expectedError:   nil,
+		},
+
+		// Test that a network with an existing subnet, that is fragmented,
+		// but can't fit the requested network size before, returns the correct subnet.
+		// {
+		// 	network:         "10.4.0.0/16",
+		// 	mask:            23,
+		// 	existing:        []string{"10.4.1.0/24"}, // 10.4.1.0 - 10.4.1.255
+		// 	expectedNetwork: "10.4.2.0/23",           // 10.4.2.0 - 10.4.3.255
+		// 	expectedError:   nil,
+		// },
+
 		// Test that a network with no existing subnets returns the correct subnet,
 		// for a mask that does not fall on an octet boundary.
 		{
@@ -299,19 +340,19 @@ func TestFree(t *testing.T) {
 		},
 
 		// Test a setup with multiple, fragmented networks, of different sizes.
-		// {
-		// 	network: "10.4.0.0/24",
-		// 	mask:    29,
-		// 	existing: []string{
-		// 		"10.4.0.0/26",
-		// 		"10.4.0.64/28",
-		// 		"10.4.0.80/28",
-		// 		"10.4.0.112/28",
-		// 		"10.4.0.128/26",
-		// 	},
-		// 	expectedNetwork: "10.4.0.96/29",
-		// 	expectedError:   nil,
-		// },
+		{
+			network: "10.4.0.0/24",
+			mask:    29,
+			existing: []string{
+				"10.4.0.0/26",
+				"10.4.0.64/28",
+				"10.4.0.80/28",
+				"10.4.0.112/28",
+				"10.4.0.128/26",
+			},
+			expectedNetwork: "10.4.0.96/29",
+			expectedError:   nil,
+		},
 	}
 
 	for index, test := range tests {
