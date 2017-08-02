@@ -1,3 +1,3 @@
-# net
+# ipam 
 
-Helper functions for IP networks.
+`ipam` provides functionality for IP Address Management.
