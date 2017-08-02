@@ -1,4 +1,4 @@
-package main
+package ipam
 
 import (
 	"github.com/giantswarm/microerror"
