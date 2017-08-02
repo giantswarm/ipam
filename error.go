@@ -31,3 +31,24 @@ var maskIncorrectSizeError = microerror.New("mask incorrect size")
 func IsMaskIncorrectSize(err error) bool {
 	return microerror.Cause(err) == maskIncorrectSizeError
 }
+
+var spaceExhaustedError = microerror.New("space exhausted")
+
+// IsSpaceExhausted asserts spaceExhaustedError.
+func IsSpaceExhausted(err error) bool {
+	return microerror.Cause(err) == spaceExhaustedError
+}
+
+var incorrectNumberOfBoundariesError = microerror.New("incorrect number of boundaries")
+
+// IsIncorrectNumberOfBoundaries asserts incorrectNumberOfBoundariesError.
+func IsIncorrectNumberOfBoundaries(err error) bool {
+	return microerror.Cause(err) == incorrectNumberOfBoundariesError
+}
+
+var incorrectNumberOfFreeRangesError = microerror.New("incorrect number of free ranges")
+
+// IsIncorrectNumberOfFreeRangesError asserts incorrectNumberOfFreeRangesError.
+func IsIncorrectNumberOfFreeRanges(err error) bool {
+	return microerror.Cause(err) == incorrectNumberOfFreeRangesError
+}

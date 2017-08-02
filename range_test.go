@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// ipNetEqual returns true if the given IPNets refer to the same network.
 func ipNetEqual(a, b net.IPNet) bool {
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }
@@ -17,6 +18,11 @@ func TestIPToDecimal(t *testing.T) {
 		ip              string
 		expectedDecimal uint32
 	}{
+		{
+			ip:              "10.0.0.0",
+			expectedDecimal: 167772160,
+		},
+
 		{
 			ip:              "10.4.0.0",
 			expectedDecimal: 168034304,
@@ -52,6 +58,10 @@ func TestDecimalToIP(t *testing.T) {
 		{
 			decimal:    168034304,
 			expectedIP: "10.4.0.0",
+		},
+		{
+			decimal:    4294967295,
+			expectedIP: "255.255.255.255",
 		},
 	}
 
@@ -108,72 +118,64 @@ func TestSize(t *testing.T) {
 	}
 }
 
-// TestNext tests the Next function.
-func TestNext(t *testing.T) {
+// TestRange tests the Range function.
+func TestRange(t *testing.T) {
 	tests := []struct {
-		network         string
-		expectedNetwork string
+		network       string
+		expectedStart uint32
+		expectedEnd   uint32
 	}{
-		// Test a simple case.
 		{
-			network:         "10.4.0.0/24",
-			expectedNetwork: "10.4.1.0/24",
+			network:       "10.4.0.0/8",
+			expectedStart: 167772160,
+			expectedEnd:   184549375,
 		},
 
-		// Test another simple case.
 		{
-			network:         "10.4.1.0/24",
-			expectedNetwork: "10.4.2.0/24",
+			network:       "10.4.0.0/16",
+			expectedStart: 168034304,
+			expectedEnd:   168099839,
 		},
 
-		// Test a case with a mask that splits octet boundaries.
 		{
-			network:         "10.4.0.0/26",
-			expectedNetwork: "10.4.0.64/26",
+			network:       "10.4.0.0/24",
+			expectedStart: 168034304,
+			expectedEnd:   168034559,
 		},
 
-		// Test another case with a non-standard mask.
 		{
-			network:         "10.4.1.1/14",
-			expectedNetwork: "10.8.0.0/14",
-		},
-
-		// Test giving IP that is inside a network.
-		{
-			network:         "10.4.255.0/24",
-			expectedNetwork: "10.5.0.0/24",
-		},
-
-		// Test that we don't panic if at the end of the space.
-		{
-			network:         "255.255.255.0/24",
-			expectedNetwork: "0.0.0.0/24",
+			network:       "172.168.0.0/25",
+			expectedStart: 2896691200,
+			expectedEnd:   2896691327,
 		},
 	}
 
 	for index, test := range tests {
 		_, network, _ := net.ParseCIDR(test.network)
-		returnedNetwork := Next(*network)
 
-		_, expected, _ := net.ParseCIDR(test.expectedNetwork)
-		if !ipNetEqual(returnedNetwork, *expected) {
+		start, end := Range(*network)
+
+		if start != test.expectedStart {
 			t.Fatalf(
-				"%v: unexpected network returned. \nexpected: %s (%#v, %#v) \nreturned: %s (%#v, %#v)",
+				"%v: unexpected start returned.\nexpected: %v\nreturned: %v\n",
 				index,
+				test.expectedStart,
+				start,
+			)
+		}
 
-				expected.String(),
-				expected.IP,
-				expected.Mask,
-
-				returnedNetwork.String(),
-				returnedNetwork.IP,
-				returnedNetwork.Mask,
+		if end != test.expectedEnd {
+			t.Fatalf(
+				"%v: unexpected end returned.\nexpected: %v\nreturned: %v\n",
+				index,
+				test.expectedEnd,
+				end,
 			)
 		}
 	}
 }
 
-// TestRanges tests the Boundaries function.
+// TestBoundaries tests the Boundaries function.
 func TestBoundaries(t *testing.T) {
 	tests := []struct {
 		network            string
@@ -218,18 +220,32 @@ func TestBoundaries(t *testing.T) {
 		},
 
 		// Test two, different sized, fragment subnets.
-		// {
-		// 	network:  "10.4.0.0/8",
-		// 	existing: []string{"10.4.1.0/25", "10.4.9.0/30"},
-		// 	expectedBoundaries: []uint32{
-		// 		168034304,
-		// 		168034560,
-		// 		168034687,
-		// 		168036608,
-		// 		168036611,
-		// 		184549375,
-		// 	},
-		// },
+		{
+			network:  "10.4.0.0/8",
+			existing: []string{"10.4.1.0/25", "10.4.9.0/30"},
+			expectedBoundaries: []uint32{
+				167772160,
+				168034560,
+				168034687,
+				168036608,
+				168036611,
+				184549375,
+			},
+		},
+
+		// Test two, different sized, fragment subnets, but with incorrect order.
+		{
+			network:  "10.4.0.0/8",
+			existing: []string{"10.4.9.0/30", "10.4.1.0/25"},
+			expectedBoundaries: []uint32{
+				167772160,
+				168034560,
+				168034687,
+				168036608,
+				168036611,
+				184549375,
+			},
+		},
 	}
 
 	for index, test := range tests {
@@ -251,6 +267,128 @@ func TestBoundaries(t *testing.T) {
 				test.expectedBoundaries,
 				returnedBoundaries,
 			)
+		}
+	}
+}
+
+func TestFreeRanges(t *testing.T) {
+	tests := []struct {
+		boundaries         []uint32
+		expectedFreeRanges []freeRange
+	}{
+		{
+			boundaries: []uint32{168034304, 168099839},
+			expectedFreeRanges: []freeRange{
+				{
+					start: 168034304,
+					end:   168099839,
+				},
+			},
+		},
+
+		{
+			boundaries: []uint32{
+				167772160,
+				168034560,
+				168034687,
+				168036608,
+				168036611,
+				184549375,
+			},
+			expectedFreeRanges: []freeRange{
+				{start: 167772160, end: 168034560},
+				{start: 168034687, end: 168036608},
+				{start: 168036611, end: 184549375},
+			},
+		},
+	}
+
+	for index, test := range tests {
+		// TODO: test errors
+		freeRanges, _ := FreeRanges(test.boundaries)
+
+		if !reflect.DeepEqual(freeRanges, test.expectedFreeRanges) {
+			t.Fatalf(
+				"%v: unexpected free ranges returned.\nexpected: %v\nreturned: %v\n",
+				index,
+				test.expectedFreeRanges,
+				freeRanges,
+			)
+		}
+	}
+}
+
+func TestSpace(t *testing.T) {
+	tests := []struct {
+		freeRanges           []freeRange
+		mask                 int
+		expectedIP           uint32
+		expectedErrorHandler func(error) bool
+	}{
+		// Test a case of fitting a network into an unused network.
+		{
+			freeRanges: []freeRange{
+				{start: 168034304, end: 168099839},
+			},
+			mask:       24,
+			expectedIP: 168034304,
+		},
+
+		// Test fitting a network into a non-fragmented range.
+		{
+			freeRanges: []freeRange{
+				{start: 168034304, end: 168034304},
+				{start: 168034559, end: 168099839},
+			},
+			mask:       24,
+			expectedIP: 168034560,
+		},
+
+		// Test adding a network that fills the range
+		{
+			freeRanges: []freeRange{
+				{start: 168034304, end: 168099839}, // 10.4.0.0/16
+			},
+			mask:       16,
+			expectedIP: 168034304,
+		},
+
+		// Test adding a network that is too large.
+		{
+			freeRanges: []freeRange{
+				{start: 168034304, end: 168099839}, // 10.4.0.0/16
+			},
+			mask:                 15,
+			expectedErrorHandler: IsSpaceExhausted,
+		},
+	}
+
+	for index, test := range tests {
+		mask := net.CIDRMask(test.mask, 32)
+
+		ip, err := Space(test.freeRanges, mask)
+
+		if err != nil {
+			if test.expectedErrorHandler == nil {
+				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
+			} else {
+				if !test.expectedErrorHandler(err) {
+					t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
+				}
+			}
+		} else {
+			if test.expectedErrorHandler != nil {
+				t.Fatalf("%v: expected error not returned.\nexpected: %v", index, test.expectedErrorHandler)
+			}
+
+			if ip != test.expectedIP {
+				t.Fatalf(
+					"%v: unexpected ip returned. \nexpected: %v\nreturned: %v",
+					index,
+					test.expectedIP,
+					ip,
+				)
+			}
 		}
 	}
 }
@@ -390,12 +528,12 @@ func TestFree(t *testing.T) {
 		},
 
 		// Test where the range is full.
-		// {
-		// 	network:              "10.4.0.0/16",
-		// 	mask:                 17,
-		// 	existing:             []string{"10.4.0.0/17", "10.4.128.0/17"},
-		// 	expectedErrorHandler: nil,
-		// },
+		{
+			network:              "10.4.0.0/16",
+			mask:                 17,
+			existing:             []string{"10.4.0.0/17", "10.4.128.0/17"},
+			expectedErrorHandler: IsSpaceExhausted,
+		},
 	}
 
 	for index, test := range tests {
