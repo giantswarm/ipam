@@ -378,7 +378,7 @@ func TestSpace(t *testing.T) {
 			}
 		} else {
 			if test.expectedErrorHandler != nil {
-				t.Fatalf("%v: expected error not returned.\nexpected: %v", index, test.expectedErrorHandler)
+				t.Fatalf("%v: expected error not returned.\nreturned: %v", index, err)
 			}
 
 			if ip != test.expectedIP {
