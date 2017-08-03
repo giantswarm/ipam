@@ -21,7 +21,7 @@ func IsNilIP(err error) bool {
 var ipNotContainedError = microerror.New("IP not contained")
 
 // IsIPNotContained asserts ipNotContainedError.
-func IsIPNotContainer(err error) bool {
+func IsIPNotContained(err error) bool {
 	return microerror.Cause(err) == ipNotContainedError
 }
 

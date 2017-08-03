@@ -10,149 +10,149 @@ import (
 	"github.com/giantswarm/microerror"
 )
 
-// IPToDecimal converts a net.IP to a uint32.
-func IPToDecimal(ip net.IP) uint32 {
+// ipToDecimal converts a net.IP to an int.
+func ipToDecimal(ip net.IP) int {
 	t := ip
 	if len(ip) == 16 {
 		t = ip[12:16]
 	}
 
-	return binary.BigEndian.Uint32(t)
+	return int(binary.BigEndian.Uint32(t))
 }
 
-// DecimalToIP converts a uint32 to a net.IP.
-func DecimalToIP(ip uint32) net.IP {
+// decimalToIP converts an int to a net.IP.
+func decimalToIP(ip int) net.IP {
 	t := make(net.IP, 4)
-	binary.BigEndian.PutUint32(t, ip)
+	binary.BigEndian.PutUint32(t, uint32(ip))
 
 	return t
 }
 
-// Size takes a mask, and returns the number of addresses.
-func Size(mask net.IPMask) uint32 {
+// size takes a mask, and returns the number of addresses.
+func size(mask net.IPMask) int {
 	ones, _ := mask.Size()
-	size := uint32(math.Pow(2, float64(32-ones)))
+	size := int(math.Pow(2, float64(32-ones)))
 
 	return size
 }
 
-// Range takes an IPNet, and returns the start and end IPs.
-func Range(network net.IPNet) (uint32, uint32) {
-	start := IPToDecimal(network.IP)
-	end := start + Size(network.Mask) - 1
+// newIPRange takes an IPNet, and returns the ipRange of the network.
+func newIPRange(network net.IPNet) ipRange {
+	start := network.IP
+	end := decimalToIP(
+		ipToDecimal(network.IP) + size(network.Mask) - 1,
+	)
 
-	return start, end
+	return ipRange{start: start, end: end}
 }
 
-// Boundaries takes a network, and a list of networks. A list of the IP addresses,
-// as uint32 is returned. The start and end of the first supplied networks are the
-// first and last entries, with each networks first and last IPs between.
-func Boundaries(network net.IPNet, existing []net.IPNet) ([]uint32, error) {
-	sort.Sort(IPNets(existing))
+// freeIPRanges takes a network, and a list of subnets.
+// It calculates available IPRanges, within the original network.
+func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
+	freeSubnets := []ipRange{}
+	networkRange := newIPRange(network)
 
-	rangeStart, rangeEnd := Range(network)
-
-	boundaries := []uint32{rangeStart}
-
-	for _, existingNetwork := range existing {
-		start, end := Range(existingNetwork)
-		boundaries = append(boundaries, start, end)
+	if len(subnets) == 0 {
+		freeSubnets = append(freeSubnets, networkRange)
 	}
 
-	boundaries = append(boundaries, rangeEnd)
+	if len(subnets) > 0 {
+		{
+			// Check space between start of network and first subnet.
+			firstSubnetRange := newIPRange(subnets[0])
 
-	// Invariant: The number of boundaries must be even.
-	if len(boundaries)%2 != 0 {
-		return nil, microerror.Maskf(
-			incorrectNumberOfBoundariesError, "%v ipnets, %v boundaries", len(existing), len(boundaries),
-		)
-	}
-
-	return boundaries, nil
-}
-
-// FreeRanges converts a list of boundaries into a list of free ranges.
-// e.g: [168034304, 168099839] to [{168034304, 168099839}].
-// These free ranges are then used to find a free space for a new network.
-func FreeRanges(boundaries []uint32) ([]freeRange, error) {
-	// Invariant: The number of boundaries must be even.
-	if len(boundaries)%2 != 0 {
-		return nil, microerror.Maskf(
-			incorrectNumberOfBoundariesError, "%v boundaries", len(boundaries),
-		)
-	}
-
-	freeRanges := []freeRange{}
-
-	for i := 0; i < len(boundaries)-1; i = i + 2 {
-		freeRanges = append(
-			freeRanges,
-			freeRange{start: boundaries[i], end: boundaries[i+1]},
-		)
-	}
-
-	// Invariant: Number of free ranges is half the number of boundaries.
-	if len(freeRanges) != len(boundaries)/2 {
-		return nil, microerror.Maskf(
-			incorrectNumberOfFreeRangesError, "%v boundaries, %v free ranges", len(boundaries), len(freeRanges),
-		)
-	}
-
-	return freeRanges, nil
-}
-
-// Space takes a list of free ranges, and returns the first IP that has space.
-func Space(freeRanges []freeRange, mask net.IPMask) (uint32, error) {
-	for i := 0; i < len(freeRanges); i++ {
-		free := freeRanges[i]
-
-		if free.end-free.start+1 >= Size(mask) {
-			start := free.start
-
-			// In the case that we are not at the start of the overall range,
-			// we need to increment to the start of the next range.
-			if i != 0 {
-				start++
+			// Check the first subnet doesn't start at the start of the network.
+			if !networkRange.start.Equal(firstSubnetRange.start) {
+				// It doesn't, so we have a free range between the start
+				// of the network, and the start of the first subnet.
+				end := decimalToIP(ipToDecimal(firstSubnetRange.start) - 1)
+				freeSubnets = append(freeSubnets,
+					ipRange{start: networkRange.start, end: end},
+				)
 			}
+		}
 
-			return start, nil
+		{
+			// Check space between each subnet.
+			for i := 0; i < len(subnets)-1; i++ {
+				firstSubnetRange := newIPRange(subnets[i])
+				secondSubnetRange := newIPRange(subnets[i+1])
+
+				// If the two subnets are not contiguous,
+				if ipToDecimal(firstSubnetRange.end)+1 != ipToDecimal(secondSubnetRange.start) {
+					// Then there is a free range between them.
+					start := decimalToIP(ipToDecimal(firstSubnetRange.end) + 1)
+					end := decimalToIP(ipToDecimal(secondSubnetRange.start) - 1)
+					freeSubnets = append(freeSubnets, ipRange{start: start, end: end})
+				}
+			}
+		}
+
+		{
+			// Check space between last subnet and end of network.
+			lastSubnetRange := newIPRange(subnets[len(subnets)-1])
+
+			// Check the last subnet doesn't end at the end of the network.
+			if !lastSubnetRange.end.Equal(networkRange.end) {
+				// It doesn't, so we have a free range between the end of the
+				// last subnet, and the end of the network.
+				start := decimalToIP(ipToDecimal(lastSubnetRange.end) + 1)
+				freeSubnets = append(freeSubnets,
+					ipRange{start: start, end: networkRange.end},
+				)
+			}
 		}
 	}
 
-	return 0, microerror.Maskf(spaceExhaustedError, "tried to fit: %v", mask)
+	return freeSubnets, nil
 }
 
-// Free takes a network, a mask, and a list of networks.
+// space takes a list of free ip ranges, and a mask,
+// and returns the start IP of the first range that could fit the mask.
+func space(freeIPRanges []ipRange, mask net.IPMask) (net.IP, error) {
+	for _, freeIPRange := range freeIPRanges {
+		start := ipToDecimal(freeIPRange.start)
+		end := ipToDecimal(freeIPRange.end)
+
+		if end-start+1 >= size(mask) {
+			return freeIPRange.start, nil
+		}
+	}
+
+	return nil, microerror.Maskf(spaceExhaustedError, "tried to fit: %v", mask)
+}
+
+// Free takes a network, a mask, and a list of subnets.
 // An available network, within the first network, is returned.
-func Free(network net.IPNet, mask net.IPMask, existing []net.IPNet) (net.IPNet, error) {
-	if Size(network.Mask) < Size(mask) {
+func Free(network net.IPNet, mask net.IPMask, subnets []net.IPNet) (net.IPNet, error) {
+	if size(network.Mask) < size(mask) {
 		return net.IPNet{}, microerror.Maskf(
 			maskTooBigError, "have: %v, requested: %v", network.Mask, mask,
 		)
 	}
 
-	sort.Sort(IPNets(existing))
-
-	// Get the start and end of each network currently in use.
-	boundaries, err := Boundaries(network, existing)
-	if err != nil {
-		return net.IPNet{}, microerror.Mask(err)
+	for _, subnet := range subnets {
+		if !network.Contains(subnet.IP) {
+			return net.IPNet{}, microerror.Maskf(
+				ipNotContainedError, "%v is not contained by %v", subnet.IP, network,
+			)
+		}
 	}
 
-	// Determine the amount of free space between each network in use,
-	// as well as betweeen the start and end of the total space.
-	freeRanges, err := FreeRanges(boundaries)
+	sort.Sort(ipNets(subnets))
+
+	// Find all the free IP ranges.
+	freeIPRanges, err := freeIPRanges(network, subnets)
 	if err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
 	// Attempt to find a free space, of the required size.
-	free, err := Space(freeRanges, mask)
+	freeIP, err := space(freeIPRanges, mask)
 	if err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
-	freeIP := DecimalToIP(free)
 	freeNetwork := net.IPNet{IP: freeIP, Mask: mask}
 
 	// Invariant: The IP of the network returned should not be nil.
