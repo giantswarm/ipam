@@ -1,3 +1,4 @@
 package: github.com/giantswarm/ipam
 import:
 - package: github.com/giantswarm/microerror
+  version: master
