@@ -329,7 +329,7 @@ func TestFreeIPRanges(t *testing.T) {
 		// Parse network.
 		_, network, err := net.ParseCIDR(test.network)
 		if err != nil {
-			t.Fatalf("%v: could not parse cidr: %v", test.network)
+			t.Fatalf("%v: could not parse cidr: %v", index, test.network)
 		}
 
 		// Parse subnets.
@@ -337,7 +337,7 @@ func TestFreeIPRanges(t *testing.T) {
 		for _, subnetString := range test.subnets {
 			_, subnet, err := net.ParseCIDR(subnetString)
 			if err != nil {
-				t.Fatalf("%v: could not parse cidr: %v", subnetString)
+				t.Fatalf("%v: could not parse cidr: %v", index, subnetString)
 			}
 
 			subnets = append(subnets, *subnet)
@@ -356,7 +356,7 @@ func TestFreeIPRanges(t *testing.T) {
 					)
 				}
 			} else {
-				t.Fatalf("%v: expected error not returned.")
+				t.Fatalf("%v: expected error not returned.", index)
 			}
 		} else {
 			if test.expectedErrorHandler == nil {
