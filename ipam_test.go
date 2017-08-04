@@ -315,7 +315,8 @@ func TestFreeIPRanges(t *testing.T) {
 		},
 
 		// Test that given a network, and one subnet at the start of the network,
-		// the entire remaining network is returned as a free range.
+		// the entire remaining network - that is, the network minus the subnet,
+		// is returned as a free range.
 		{
 			network: "10.4.0.0/16",
 			subnets: []string{"10.4.0.0/24"},
