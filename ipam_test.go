@@ -120,6 +120,67 @@ func TestDecimalToIP(t *testing.T) {
 	}
 }
 
+// TestAdd tests the add function.
+func TestAdd(t *testing.T) {
+	tests := []struct {
+		ip         string
+		number     int
+		expectedIP string
+	}{
+		{
+			ip:         "127.0.0.1",
+			number:     0,
+			expectedIP: "127.0.0.1",
+		},
+
+		{
+			ip:         "127.0.0.1",
+			number:     1,
+			expectedIP: "127.0.0.2",
+		},
+
+		{
+			ip:         "127.0.0.1",
+			number:     2,
+			expectedIP: "127.0.0.3",
+		},
+
+		{
+			ip:         "127.0.0.1",
+			number:     -1,
+			expectedIP: "127.0.0.0",
+		},
+
+		{
+			ip:         "0.0.0.0",
+			number:     -1,
+			expectedIP: "255.255.255.255",
+		},
+
+		{
+			ip:         "255.255.255.255",
+			number:     1,
+			expectedIP: "0.0.0.0",
+		},
+	}
+
+	for index, test := range tests {
+		ip := net.ParseIP(test.ip)
+		expectedIP := net.ParseIP(test.expectedIP)
+
+		returnedIP := add(ip, test.number)
+
+		if !returnedIP.Equal(expectedIP) {
+			t.Fatalf(
+				"%v: unexpected ip returned.\nexpected: %v, returned: %v",
+				index,
+				expectedIP,
+				returnedIP,
+			)
+		}
+	}
+}
+
 // TestSize tests the Size function.
 func TestSize(t *testing.T) {
 	tests := []struct {

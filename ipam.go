@@ -28,6 +28,13 @@ func decimalToIP(ip int) net.IP {
 	return t
 }
 
+// add increments the given IP by the number.
+// e.g: add(10.0.4.0, 1) -> 10.0.4.1.
+// Negative values are allowed for decrementing.
+func add(ip net.IP, number int) net.IP {
+	return decimalToIP(ipToDecimal(ip) + number)
+}
+
 // size takes a mask, and returns the number of addresses.
 func size(mask net.IPMask) int {
 	ones, _ := mask.Size()
@@ -39,9 +46,7 @@ func size(mask net.IPMask) int {
 // newIPRange takes an IPNet, and returns the ipRange of the network.
 func newIPRange(network net.IPNet) ipRange {
 	start := network.IP
-	end := decimalToIP(
-		ipToDecimal(network.IP) + size(network.Mask) - 1,
-	)
+	end := add(network.IP, size(network.Mask)-1)
 
 	return ipRange{start: start, end: end}
 }
@@ -65,7 +70,7 @@ func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
 			if !networkRange.start.Equal(firstSubnetRange.start) {
 				// It doesn't, so we have a free range between the start
 				// of the network, and the start of the first subnet.
-				end := decimalToIP(ipToDecimal(firstSubnetRange.start) - 1)
+				end := add(firstSubnetRange.start, -1)
 				freeSubnets = append(freeSubnets,
 					ipRange{start: networkRange.start, end: end},
 				)
@@ -81,8 +86,8 @@ func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
 				// If the two subnets are not contiguous,
 				if ipToDecimal(firstSubnetRange.end)+1 != ipToDecimal(secondSubnetRange.start) {
 					// Then there is a free range between them.
-					start := decimalToIP(ipToDecimal(firstSubnetRange.end) + 1)
-					end := decimalToIP(ipToDecimal(secondSubnetRange.start) - 1)
+					start := add(firstSubnetRange.end, 1)
+					end := add(secondSubnetRange.start, -1)
 					freeSubnets = append(freeSubnets, ipRange{start: start, end: end})
 				}
 			}
@@ -96,7 +101,7 @@ func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
 			if !lastSubnetRange.end.Equal(networkRange.end) {
 				// It doesn't, so we have a free range between the end of the
 				// last subnet, and the end of the network.
-				start := decimalToIP(ipToDecimal(lastSubnetRange.end) + 1)
+				start := add(lastSubnetRange.end, 1)
 				freeSubnets = append(freeSubnets,
 					ipRange{start: start, end: networkRange.end},
 				)
