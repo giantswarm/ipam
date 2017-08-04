@@ -80,14 +80,14 @@ func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
 	{
 		// Check space between each subnet.
 		for i := 0; i < len(subnets)-1; i++ {
-			firstSubnetRange := newIPRange(subnets[i])
-			secondSubnetRange := newIPRange(subnets[i+1])
+			currentSubnetRange := newIPRange(subnets[i])
+			nextSubnetRange := newIPRange(subnets[i+1])
 
 			// If the two subnets are not contiguous,
-			if ipToDecimal(firstSubnetRange.end)+1 != ipToDecimal(secondSubnetRange.start) {
+			if ipToDecimal(currentSubnetRange.end)+1 != ipToDecimal(nextSubnetRange.start) {
 				// Then there is a free range between them.
-				start := add(firstSubnetRange.end, 1)
-				end := add(secondSubnetRange.start, -1)
+				start := add(currentSubnetRange.end, 1)
+				end := add(nextSubnetRange.start, -1)
 				freeSubnets = append(freeSubnets, ipRange{start: start, end: end})
 			}
 		}
