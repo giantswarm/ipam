@@ -59,53 +59,52 @@ func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
 
 	if len(subnets) == 0 {
 		freeSubnets = append(freeSubnets, networkRange)
+		return freeSubnets, nil
 	}
 
-	if len(subnets) > 0 {
-		{
-			// Check space between start of network and first subnet.
-			firstSubnetRange := newIPRange(subnets[0])
+	{
+		// Check space between start of network and first subnet.
+		firstSubnetRange := newIPRange(subnets[0])
 
-			// Check the first subnet doesn't start at the start of the network.
-			if !networkRange.start.Equal(firstSubnetRange.start) {
-				// It doesn't, so we have a free range between the start
-				// of the network, and the start of the first subnet.
-				end := add(firstSubnetRange.start, -1)
-				freeSubnets = append(freeSubnets,
-					ipRange{start: networkRange.start, end: end},
-				)
+		// Check the first subnet doesn't start at the start of the network.
+		if !networkRange.start.Equal(firstSubnetRange.start) {
+			// It doesn't, so we have a free range between the start
+			// of the network, and the start of the first subnet.
+			end := add(firstSubnetRange.start, -1)
+			freeSubnets = append(freeSubnets,
+				ipRange{start: networkRange.start, end: end},
+			)
+		}
+	}
+
+	{
+		// Check space between each subnet.
+		for i := 0; i < len(subnets)-1; i++ {
+			firstSubnetRange := newIPRange(subnets[i])
+			secondSubnetRange := newIPRange(subnets[i+1])
+
+			// If the two subnets are not contiguous,
+			if ipToDecimal(firstSubnetRange.end)+1 != ipToDecimal(secondSubnetRange.start) {
+				// Then there is a free range between them.
+				start := add(firstSubnetRange.end, 1)
+				end := add(secondSubnetRange.start, -1)
+				freeSubnets = append(freeSubnets, ipRange{start: start, end: end})
 			}
 		}
+	}
 
-		{
-			// Check space between each subnet.
-			for i := 0; i < len(subnets)-1; i++ {
-				firstSubnetRange := newIPRange(subnets[i])
-				secondSubnetRange := newIPRange(subnets[i+1])
+	{
+		// Check space between last subnet and end of network.
+		lastSubnetRange := newIPRange(subnets[len(subnets)-1])
 
-				// If the two subnets are not contiguous,
-				if ipToDecimal(firstSubnetRange.end)+1 != ipToDecimal(secondSubnetRange.start) {
-					// Then there is a free range between them.
-					start := add(firstSubnetRange.end, 1)
-					end := add(secondSubnetRange.start, -1)
-					freeSubnets = append(freeSubnets, ipRange{start: start, end: end})
-				}
-			}
-		}
-
-		{
-			// Check space between last subnet and end of network.
-			lastSubnetRange := newIPRange(subnets[len(subnets)-1])
-
-			// Check the last subnet doesn't end at the end of the network.
-			if !lastSubnetRange.end.Equal(networkRange.end) {
-				// It doesn't, so we have a free range between the end of the
-				// last subnet, and the end of the network.
-				start := add(lastSubnetRange.end, 1)
-				freeSubnets = append(freeSubnets,
-					ipRange{start: start, end: networkRange.end},
-				)
-			}
+		// Check the last subnet doesn't end at the end of the network.
+		if !lastSubnetRange.end.Equal(networkRange.end) {
+			// It doesn't, so we have a free range between the end of the
+			// last subnet, and the end of the network.
+			start := add(lastSubnetRange.end, 1)
+			freeSubnets = append(freeSubnets,
+				ipRange{start: start, end: networkRange.end},
+			)
 		}
 	}
 
