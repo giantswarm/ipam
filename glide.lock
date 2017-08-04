@@ -1,0 +1,8 @@
+hash: 9b08c818e0eaa070e778c6d7297785261a8f8b517a5dc71463fbf201b3c0257d
+updated: 2017-08-03T10:59:15.391103725+01:00
+imports:
+- name: github.com/giantswarm/microerror
+  version: 7bf6a0a6d24b1e3a03af3ed3a8e3531d792ea3e3
+- name: github.com/juju/errgo
+  version: 08cceb5d0b5331634b9826762a8fd53b29b86ad8
+testImports: []
