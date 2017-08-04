@@ -158,12 +158,12 @@ func Free(network net.IPNet, mask net.IPMask, subnets []net.IPNet) (net.IPNet, e
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
-	freeNetwork := net.IPNet{IP: freeIP, Mask: mask}
-
 	// Invariant: The IP of the network returned should not be nil.
-	if freeNetwork.IP == nil {
+	if freeIP == nil {
 		return net.IPNet{}, microerror.Mask(nilIPError)
 	}
+
+	freeNetwork := net.IPNet{IP: freeIP, Mask: mask}
 
 	// Invariant: The IP of the network returned should be contained
 	// within the network supplied.
