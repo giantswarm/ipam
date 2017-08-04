@@ -305,6 +305,7 @@ func TestFreeIPRanges(t *testing.T) {
 		// the entire network is returned as a free range.
 		{
 			network: "10.4.0.0/16",
+			subnets: []string{},
 			expectedFreeIPRanges: []ipRange{
 				ipRange{
 					start: net.ParseIP("10.4.0.0"),
@@ -545,6 +546,7 @@ func TestFree(t *testing.T) {
 		{
 			network:         "10.4.0.0/16",
 			mask:            24,
+			subnets:         []string{},
 			expectedNetwork: "10.4.0.0/24",
 		},
 
@@ -637,6 +639,7 @@ func TestFree(t *testing.T) {
 		{
 			network:         "10.4.0.0/16",
 			mask:            16,
+			subnets:         []string{},
 			expectedNetwork: "10.4.0.0/16",
 		},
 
@@ -644,6 +647,7 @@ func TestFree(t *testing.T) {
 		{
 			network:              "10.4.0.0/16",
 			mask:                 15,
+			subnets:              []string{},
 			expectedErrorHandler: IsMaskTooBig,
 		},
 
