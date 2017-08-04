@@ -326,13 +326,11 @@ func TestFreeIPRanges(t *testing.T) {
 	}
 
 	for index, test := range tests {
-		// Parse network.
 		_, network, err := net.ParseCIDR(test.network)
 		if err != nil {
 			t.Fatalf("%v: could not parse cidr: %v", index, test.network)
 		}
 
-		// Parse subnets.
 		subnets := []net.IPNet{}
 		for _, subnetString := range test.subnets {
 			_, subnet, err := net.ParseCIDR(subnetString)
@@ -345,26 +343,25 @@ func TestFreeIPRanges(t *testing.T) {
 
 		freeSubnets, err := freeIPRanges(*network, subnets)
 
-		if err == nil {
+		if err != nil {
 			if test.expectedErrorHandler == nil {
-				if !ipRangesEqual(freeSubnets, test.expectedFreeIPRanges) {
-					t.Fatalf(
-						"%v: unexpected free subnets returned.\nexpected: %v\nreturned: %v",
-						index,
-						test.expectedFreeIPRanges,
-						freeSubnets,
-					)
-				}
-			} else {
-				t.Fatalf("%v: expected error not returned.", index)
+				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
+			}
+			if !test.expectedErrorHandler(err) {
+				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
 			}
 		} else {
-			if test.expectedErrorHandler == nil {
-				t.Fatalf("%v: unexpected error returned: %v", index, err)
-			} else {
-				if !test.expectedErrorHandler(err) {
-					t.Fatalf("%v: incorrect error returned: %v", index, err)
-				}
+			if test.expectedErrorHandler != nil {
+				t.Fatalf("%v: expected error not returned.", index)
+			}
+
+			if !ipRangesEqual(freeSubnets, test.expectedFreeIPRanges) {
+				t.Fatalf(
+					"%v: unexpected free subnets returned.\nexpected: %v\nreturned: %v",
+					index,
+					test.expectedFreeIPRanges,
+					freeSubnets,
+				)
 			}
 		}
 	}
@@ -453,14 +450,13 @@ func TestSpace(t *testing.T) {
 		if err != nil {
 			if test.expectedErrorHandler == nil {
 				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
-			} else {
-				if !test.expectedErrorHandler(err) {
-					t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
-				}
+			}
+			if !test.expectedErrorHandler(err) {
+				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
 			}
 		} else {
 			if test.expectedErrorHandler != nil {
-				t.Fatalf("%v: expected error not returned.\nreturned: %v", index, err)
+				t.Fatalf("%v: expected error not returned.", index)
 			}
 
 			if !ip.Equal(test.expectedIP) {
@@ -624,44 +620,51 @@ func TestFree(t *testing.T) {
 	}
 
 	for index, test := range tests {
-		_, network, _ := net.ParseCIDR(test.network)
+		_, network, err := net.ParseCIDR(test.network)
+		if err != nil {
+			t.Fatalf("%v: could not parse cidr: %v", index, test.network)
+		}
+
 		mask := net.CIDRMask(test.mask, 32)
 
 		subnets := []net.IPNet{}
 		for _, e := range test.subnets {
-			_, n, _ := net.ParseCIDR(e)
+			_, n, err := net.ParseCIDR(e)
+			if err != nil {
+				t.Fatalf("%v: could not parse cidr: %v", index, test.network)
+			}
 			subnets = append(subnets, *n)
 		}
+
+		_, expectedNetwork, _ := net.ParseCIDR(test.expectedNetwork)
 
 		returnedNetwork, err := Free(*network, mask, subnets)
 
 		if err != nil {
 			if test.expectedErrorHandler == nil {
 				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
-			} else {
-				if !test.expectedErrorHandler(err) {
-					t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
-				}
+			}
+			if !test.expectedErrorHandler(err) {
+				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
 			}
 		} else {
 			if test.expectedErrorHandler != nil {
 				t.Fatalf("%v: expected error not returned.", index)
-			} else {
-				_, expected, _ := net.ParseCIDR(test.expectedNetwork)
-				if !ipNetEqual(returnedNetwork, *expected) {
-					t.Fatalf(
-						"%v: unexpected network returned. \nexpected: %s (%#v, %#v) \nreturned: %s (%#v, %#v)",
-						index,
+			}
 
-						expected.String(),
-						expected.IP,
-						expected.Mask,
+			if !ipNetEqual(returnedNetwork, *expectedNetwork) {
+				t.Fatalf(
+					"%v: unexpected network returned. \nexpected: %s (%#v, %#v) \nreturned: %s (%#v, %#v)",
+					index,
 
-						returnedNetwork.String(),
-						returnedNetwork.IP,
-						returnedNetwork.Mask,
-					)
-				}
+					expectedNetwork.String(),
+					expectedNetwork.IP,
+					expectedNetwork.Mask,
+
+					returnedNetwork.String(),
+					returnedNetwork.IP,
+					returnedNetwork.Mask,
+				)
 			}
 		}
 	}
