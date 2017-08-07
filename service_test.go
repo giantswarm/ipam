@@ -10,20 +10,17 @@ import (
 func TestNew(t *testing.T) {
 	// testNetwork is a network to set for testing.
 	_, testNetwork, _ := net.ParseCIDR("10.4.0.0/16")
-	// testMask is a mask to set for testing.
-	testMask := net.CIDRMask(16, 32)
 
 	tests := []struct {
 		config               func() Config
 		expectedErrorHandler func(error) bool
 	}{
-		// Test that the default config, with a network and mask set,
+		// Test that the default config, with a network set,
 		// returns a new IPAM service.
 		{
 			config: func() Config {
 				c := DefaultConfig()
 				c.Network = testNetwork
-				c.Mask = &testMask
 				return c
 			},
 		},
@@ -34,7 +31,6 @@ func TestNew(t *testing.T) {
 				c := DefaultConfig()
 				c.Logger = nil
 				c.Network = testNetwork
-				c.Mask = &testMask
 				return c
 			},
 			expectedErrorHandler: IsInvalidConfig,
@@ -46,7 +42,6 @@ func TestNew(t *testing.T) {
 				c := DefaultConfig()
 				c.Storage = nil
 				c.Network = testNetwork
-				c.Mask = &testMask
 				return c
 			},
 			expectedErrorHandler: IsInvalidConfig,
@@ -57,18 +52,6 @@ func TestNew(t *testing.T) {
 			config: func() Config {
 				c := DefaultConfig()
 				c.Network = nil
-				c.Mask = &testMask
-				return c
-			},
-			expectedErrorHandler: IsInvalidConfig,
-		},
-
-		// Test that a config with an empty mask returns an invalid config error.
-		{
-			config: func() Config {
-				c := DefaultConfig()
-				c.Network = testNetwork
-				c.Mask = nil
 				return c
 			},
 			expectedErrorHandler: IsInvalidConfig,
@@ -103,104 +86,130 @@ func TestNew(t *testing.T) {
 	}
 }
 
-// TestNewSubnet tests the NewSubnet method.
-func TestNewSubnet(t *testing.T) {
-	tests := []struct {
-		network              string
-		mask                 int
-		expectedSubnets      []string
+// TestNewSubnetAndDeleteSubnet tests that NewSubnet and DeleteSubnet methods work together correctly.
+func TestNewSubnetAndDeleteSubnet(t *testing.T) {
+	type step struct {
+		// add is true if we create a subnet, false if we delete one.
+		add bool
+		// mask is the mask to use if creating a new subnet.
+		mask int
+		// subnetToDelete is the subnet to delete, if we are deleting one.
+		subnetToDelete string
+		// expectedSubnet is the subnet we expect, if we are creating one.
+		expectedSubnet string
+		// expectedErrorHandler is the error handler we expect in case of error,
+		// if an error should be returned.
 		expectedErrorHandler func(error) bool
+	}
+
+	tests := []struct {
+		network string
+		steps   []step
 	}{
-		// Test that the first subnet is returned correctly.
-		{
-			network:         "10.4.0.0/16",
-			mask:            24,
-			expectedSubnets: []string{"10.4.0.0/24"},
-		},
-
-		// Test that two subnets are returned correctly.
+		// Test that adding a single subnet returns the correct subnet.
 		{
 			network: "10.4.0.0/16",
-			mask:    24,
-			expectedSubnets: []string{
-				"10.4.0.0/24",
-				"10.4.1.0/24",
+			steps: []step{
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.0.0/24",
+				},
 			},
 		},
 
-		// Test that three subnets are returned correctly, with a different mask.
+		// Test that adding three subnets returns the correct subnets.
 		{
-			network: "10.4.0.0/18",
-			mask:    25,
-			expectedSubnets: []string{
-				"10.4.0.0/25",
-				"10.4.0.128/25",
-				"10.4.1.0/25",
+			network: "10.4.0.0/16",
+			steps: []step{
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.0.0/24",
+				},
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.1.0/24",
+				},
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.2.0/24",
+				},
 			},
 		},
 
-		// Test that errors are returned correctly.
+		// Test that adding two subnets with different mask sizes,
+		// returns the correct subnets.
 		{
 			network: "10.4.0.0/16",
-			mask:    15,
-			// expect one subnet, even though we're expecting an error, so we actually call `NewSubnet`,
-			expectedSubnets:      []string{"10.4.0.0/16"},
-			expectedErrorHandler: IsMaskTooBig,
+			steps: []step{
+				{
+					add:            true,
+					mask:           25,
+					expectedSubnet: "10.4.0.0/25",
+				},
+				{
+					add:            true,
+					mask:           26,
+					expectedSubnet: "10.4.0.128/26",
+				},
+			},
+		},
+
+		// Test adding a network that is too large returns an error.
+		{
+			network: "10.4.0.0/16",
+			steps: []step{
+				{
+					add:                  true,
+					mask:                 15,
+					expectedErrorHandler: IsMaskTooBig,
+				},
+			},
 		},
 	}
 
 	for index, test := range tests {
-		// Parse network and mask.
+		// Parse network.
 		_, network, err := net.ParseCIDR(test.network)
 		if err != nil {
 			t.Fatalf("%v: error returned parsing network cidr: %v", index, err)
 		}
 
-		mask := net.CIDRMask(test.mask, 32)
-
 		// Create a new IPAM service.
 		config := DefaultConfig()
 		config.Network = network
-		config.Mask = &mask
 
 		service, err := New(config)
 		if err != nil {
 			t.Fatalf("%v: error returned creating ipam service: %v", index, err)
 		}
 
-		// Parse expected subnets.
-		expectedSubnets := []net.IPNet{}
-		for _, expectedSubnet := range test.expectedSubnets {
-			_, subnet, err := net.ParseCIDR(expectedSubnet)
-			if err != nil {
-				t.Fatalf("%v: error returned parsing expected subnet: %v", index, err)
-			}
-			expectedSubnets = append(expectedSubnets, *subnet)
-		}
+		for _, step := range test.steps {
+			if step.add {
+				mask := net.CIDRMask(step.mask, 32)
 
-		// For each expected subnet, test that it is what the IPAM service returns.
-		for _, expectedSubnet := range expectedSubnets {
-			returnedSubnet, err := service.NewSubnet()
-
-			if err == nil && test.expectedErrorHandler != nil {
-				t.Fatalf("%v: expected error not returned", index)
-			}
-			if err != nil {
-				if test.expectedErrorHandler == nil {
-					t.Fatalf("%v: unexpected error returned: %v", index, err)
-				} else {
-					if !test.expectedErrorHandler(err) {
-						t.Fatalf("%v: incorrect error returned: %v", index, err)
+				returnedSubnet, err := service.NewSubnet(mask)
+				if err != nil {
+					if !step.expectedErrorHandler(err) {
+						t.Fatalf("%v: unexpected error returned creating new subnet: %v", index, err)
 					}
-				}
-			} else {
-				if !returnedSubnet.IP.Equal(expectedSubnet.IP) || !bytes.Equal(returnedSubnet.Mask, expectedSubnet.Mask) {
-					t.Fatalf(
-						"%v: returned subnet did not match expected.\nexpected: %v\nreturned: %v\n",
-						index,
-						expectedSubnet,
-						returnedSubnet,
-					)
+				} else {
+					_, expectedSubnet, err := net.ParseCIDR(step.expectedSubnet)
+					if err != nil {
+						t.Fatalf("%v: error returned parsing expected subnet: %v", index, err)
+					}
+
+					if !returnedSubnet.IP.Equal(expectedSubnet.IP) || !bytes.Equal(returnedSubnet.Mask, expectedSubnet.Mask) {
+						t.Fatalf(
+							"%v: returned subnet did not match expected.\nexpected: %v\nreturned: %v\n",
+							index,
+							expectedSubnet,
+							returnedSubnet,
+						)
+					}
 				}
 			}
 		}

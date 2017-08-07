@@ -25,8 +25,6 @@ type Config struct {
 	// Settings.
 	// Network is the network in which all returned subnets should exist.
 	Network *net.IPNet
-	// Mask is the mask for all returned subnets.
-	Mask *net.IPMask
 }
 
 // DefaultConfig provides a default configuration to create a new ipam service
@@ -73,9 +71,6 @@ func New(config Config) (*Service, error) {
 	if config.Network == nil {
 		return nil, microerror.Maskf(invalidConfigError, "network must not be empty")
 	}
-	if config.Mask == nil {
-		return nil, microerror.Maskf(invalidConfigError, "mask must not be empty")
-	}
 
 	newService := &Service{
 		// Dependencies.
@@ -84,7 +79,6 @@ func New(config Config) (*Service, error) {
 
 		// Settings.
 		network: *config.Network,
-		mask:    *config.Mask,
 	}
 
 	return newService, nil
@@ -97,12 +91,11 @@ type Service struct {
 
 	// Settings.
 	network net.IPNet
-	mask    net.IPMask
 }
 
 // NewSubnet returns the next available subnet, of the configured size,
 // from the configured network.
-func (s *Service) NewSubnet() (net.IPNet, error) {
+func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
 	s.logger.Log("info", "creating new subnet")
 
 	ctx := context.Background()
@@ -127,7 +120,7 @@ func (s *Service) NewSubnet() (net.IPNet, error) {
 	s.logger.Log("info", "computing next subnet")
 
 	// Compute the next subnet.
-	subnet, err := Free(s.network, s.mask, existingSubnets)
+	subnet, err := Free(s.network, mask, existingSubnets)
 	if err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
