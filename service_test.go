@@ -4,11 +4,22 @@ import (
 	"bytes"
 	"net"
 	"testing"
+
+	"github.com/giantswarm/micrologger"
+	"github.com/giantswarm/microstorage/memory"
 )
 
 // TestNew tests the New function.
 func TestNew(t *testing.T) {
-	// testNetwork is a network to set for testing.
+	testLogger, err := micrologger.New(micrologger.DefaultConfig())
+	if err != nil {
+		t.Fatalf("%v: error creating new logger: %v", err)
+	}
+	testStorage, err := memory.New(memory.DefaultConfig())
+	if err != nil {
+		t.Fatalf("%v: error creating new storage: %v", err)
+	}
+
 	_, testNetwork, _ := net.ParseCIDR("10.4.0.0/16")
 
 	tests := []struct {
@@ -20,7 +31,11 @@ func TestNew(t *testing.T) {
 		{
 			config: func() Config {
 				c := DefaultConfig()
+
+				c.Logger = testLogger
+				c.Storage = testStorage
 				c.Network = testNetwork
+
 				return c
 			},
 		},
@@ -29,8 +44,11 @@ func TestNew(t *testing.T) {
 		{
 			config: func() Config {
 				c := DefaultConfig()
+
 				c.Logger = nil
+				c.Storage = testStorage
 				c.Network = testNetwork
+
 				return c
 			},
 			expectedErrorHandler: IsInvalidConfig,
@@ -40,8 +58,11 @@ func TestNew(t *testing.T) {
 		{
 			config: func() Config {
 				c := DefaultConfig()
+
+				c.Logger = testLogger
 				c.Storage = nil
 				c.Network = testNetwork
+
 				return c
 			},
 			expectedErrorHandler: IsInvalidConfig,
@@ -51,15 +72,13 @@ func TestNew(t *testing.T) {
 		{
 			config: func() Config {
 				c := DefaultConfig()
+
+				c.Logger = testLogger
+				c.Storage = testStorage
 				c.Network = nil
+
 				return c
 			},
-			expectedErrorHandler: IsInvalidConfig,
-		},
-
-		// Test that an empty config returns an invalid config error.
-		{
-			config:               func() Config { return Config{} },
 			expectedErrorHandler: IsInvalidConfig,
 		},
 	}
@@ -269,7 +288,18 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 		}
 
 		// Create a new IPAM service.
+		logger, err := micrologger.New(micrologger.DefaultConfig())
+		if err != nil {
+			t.Fatalf("%v: error creating new logger: %v", err)
+		}
+		storage, err := memory.New(memory.DefaultConfig())
+		if err != nil {
+			t.Fatalf("%v: error creating new storage: %v", err)
+		}
+
 		config := DefaultConfig()
+		config.Logger = logger
+		config.Storage = storage
 		config.Network = network
 
 		service, err := New(config)

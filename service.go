@@ -10,7 +10,6 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/microstorage"
-	"github.com/giantswarm/microstorage/memory"
 )
 
 const (
@@ -32,30 +31,13 @@ type Config struct {
 // DefaultConfig provides a default configuration to create a new ipam service
 // by best effort.
 func DefaultConfig() Config {
-	var err error
-
-	var newLogger micrologger.Logger
-	{
-		config := micrologger.DefaultConfig()
-		newLogger, err = micrologger.New(config)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	var newStorage microstorage.Storage
-	{
-		config := memory.DefaultConfig()
-		newStorage, err = memory.New(config)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	return Config{
 		// Dependencies.
-		Logger:  newLogger,
-		Storage: newStorage,
+		Logger:  nil, // Required.
+		Storage: nil, // Required.
+
+		// Settings.
+		Network: nil, // Required.
 	}
 }
 
