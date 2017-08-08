@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
@@ -115,7 +116,7 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 	for _, existingSubnetString := range existingSubnetStrings {
 		// TODO: memory storage seems to return the end of the key with List,
 		// not the value. This reverts `key` to provide a valid CIDR string,
-		// and is technically safe for other storages.
+		// and is (technically) safe for other storages.
 		// tl;dr - fix memory storage returning the wrong thing.
 		existingSubnetString = strings.Replace(existingSubnetString, "-", "/", -1)
 
@@ -126,6 +127,8 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 		existingSubnets = append(existingSubnets, *existingSubnet)
 	}
 
+	subnetCounter.Set(float64(len(existingSubnets)))
+
 	return existingSubnets, nil
 }
 
@@ -133,6 +136,7 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 // from the configured network.
 func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
 	s.logger.Log("info", "creating new subnet")
+	defer updateMetrics("create", time.Now())
 
 	ctx := context.Background()
 
@@ -159,6 +163,7 @@ func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
 // meaning it can be given out again.
 func (s *Service) DeleteSubnet(subnet net.IPNet) error {
 	s.logger.Log("info", "deleting subnet", "subnet", subnet.String())
+	defer updateMetrics("delete", time.Now())
 
 	ctx := context.Background()
 

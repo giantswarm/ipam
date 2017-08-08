@@ -4,3 +4,5 @@ import:
   version: master
 - package: github.com/giantswarm/microstorage
   version: master
+- package: github.com/prometheus/client_golang/prometheus
+  version: master
