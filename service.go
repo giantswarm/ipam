@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
@@ -93,6 +94,41 @@ type Service struct {
 	network net.IPNet
 }
 
+// key returns a storage key for a given network.
+func key(network net.IPNet) string {
+	return fmt.Sprintf(
+		IPAMSubnetStorageKeyFormat,
+		strings.Replace(network.String(), "/", "-", -1),
+	)
+}
+
+// listSubnets retrieves the stored subnets from storage and returns them.
+func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
+	s.logger.Log("info", "listing subnets")
+
+	existingSubnetStrings, err := s.storage.List(ctx, IPAMSubnetStorageKey)
+	if err != nil && !microstorage.IsNotFound(err) {
+		return nil, microerror.Mask(err)
+	}
+
+	existingSubnets := []net.IPNet{}
+	for _, existingSubnetString := range existingSubnetStrings {
+		// TODO: memory storage seems to return the end of the key with List,
+		// not the value. This reverts `key` to provide a valid CIDR string,
+		// and is technically safe for other storages.
+		// tl;dr - fix memory storage returning the wrong thing.
+		existingSubnetString = strings.Replace(existingSubnetString, "-", "/", -1)
+
+		_, existingSubnet, err := net.ParseCIDR(existingSubnetString)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+		existingSubnets = append(existingSubnets, *existingSubnet)
+	}
+
+	return existingSubnets, nil
+}
+
 // NewSubnet returns the next available subnet, of the configured size,
 // from the configured network.
 func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
@@ -100,41 +136,35 @@ func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
 
 	ctx := context.Background()
 
-	s.logger.Log("info", "fetching existing subnets")
-
-	// Fetch existing subnets from storage.
-	existingSubnetStrings, err := s.storage.List(ctx, IPAMSubnetStorageKey)
-	if err != nil && !microstorage.IsNotFound(err) {
+	existingSubnets, err := s.listSubnets(ctx)
+	if err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
-	existingSubnets := []net.IPNet{}
-	for _, existingSubnetString := range existingSubnetStrings {
-		_, existingSubnet, err := net.ParseCIDR(existingSubnetString)
-		if err != nil {
-			return net.IPNet{}, microerror.Mask(err)
-		}
-		existingSubnets = append(existingSubnets, *existingSubnet)
-	}
-
 	s.logger.Log("info", "computing next subnet")
-
-	// Compute the next subnet.
 	subnet, err := Free(s.network, mask, existingSubnets)
 	if err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
-	s.logger.Log("info", "storing computed subnet")
-
-	// Store the next subnet.
-	if err := s.storage.Put(
-		ctx,
-		fmt.Sprintf(IPAMSubnetStorageKeyFormat, subnet.String()),
-		subnet.String(),
-	); err != nil {
+	s.logger.Log("info", "putting subnet", "subnet", subnet.String())
+	if err := s.storage.Put(ctx, key(subnet), subnet.String()); err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
 	return subnet, nil
+}
+
+// DeleteSubnet deletes the given subnet from IPAM storage,
+// meaning it can be given out again.
+func (s *Service) DeleteSubnet(subnet net.IPNet) error {
+	s.logger.Log("info", "deleting subnet", "subnet", subnet.String())
+
+	ctx := context.Background()
+
+	if err := s.storage.Delete(ctx, key(subnet)); err != nil {
+		return microerror.Mask(err)
+	}
+
+	return nil
 }

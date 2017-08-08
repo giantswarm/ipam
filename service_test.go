@@ -86,6 +86,41 @@ func TestNew(t *testing.T) {
 	}
 }
 
+// TestKey tests the key function.
+func TestKey(t *testing.T) {
+	tests := []struct {
+		network     string
+		expectedKey string
+	}{
+		{
+			network:     "10.4.0.0/16",
+			expectedKey: "/ipam/subnet/10.4.0.0-16",
+		},
+		{
+			network:     "192.168.1.0/24",
+			expectedKey: "/ipam/subnet/192.168.1.0-24",
+		},
+	}
+
+	for index, test := range tests {
+		_, network, err := net.ParseCIDR(test.network)
+		if err != nil {
+			t.Fatalf("%v: error returned parsing network cidr: %v", index, err)
+		}
+
+		returnedKey := key(*network)
+
+		if returnedKey != test.expectedKey {
+			t.Fatalf(
+				"%v: returned key did not match expected key.\nexpected: %v\nreturned: %v\n",
+				index,
+				test.expectedKey,
+				returnedKey,
+			)
+		}
+	}
+}
+
 // TestNewSubnetAndDeleteSubnet tests that NewSubnet and DeleteSubnet methods work together correctly.
 func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 	type step struct {
@@ -169,6 +204,61 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 				},
 			},
 		},
+
+		// Test that adding a subnet, deleting it, and adding another subnet,
+		// works correctly.
+		{
+			network: "10.4.0.0/16",
+			steps: []step{
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.0.0/24",
+				},
+				{
+					add:            false,
+					subnetToDelete: "10.4.0.0/24",
+				},
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.0.0/24",
+				},
+			},
+		},
+
+		// Test that adding two subnets, deleting the first one, then
+		// adding a third larger subnet, and then a fourth of the original size,
+		// works correctly.
+		{
+			network: "10.4.0.0/16",
+			steps: []step{
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.0.0/24",
+				},
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.1.0/24",
+				},
+				{
+					add:            false,
+					subnetToDelete: "10.4.0.0/24",
+				},
+				{
+					add:            true,
+					mask:           23,
+					expectedSubnet: "10.4.2.0/23",
+				},
+				{
+					add:            true,
+					mask:           24,
+					expectedSubnet: "10.4.0.0/24",
+				},
+			},
+		},
 	}
 
 	for index, test := range tests {
@@ -193,7 +283,11 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 
 				returnedSubnet, err := service.NewSubnet(mask)
 				if err != nil {
-					if !step.expectedErrorHandler(err) {
+					if step.expectedErrorHandler != nil {
+						if !step.expectedErrorHandler(err) {
+							t.Fatalf("%v: incorrect error returned creating new subnet: %v", index, err)
+						}
+					} else {
 						t.Fatalf("%v: unexpected error returned creating new subnet: %v", index, err)
 					}
 				} else {
@@ -206,9 +300,20 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 						t.Fatalf(
 							"%v: returned subnet did not match expected.\nexpected: %v\nreturned: %v\n",
 							index,
-							expectedSubnet,
+							*expectedSubnet,
 							returnedSubnet,
 						)
+					}
+				}
+			} else {
+				_, subnetToDelete, err := net.ParseCIDR(step.subnetToDelete)
+				if err != nil {
+					t.Fatalf("%v: error returned parsing network cidr: %v", index, err)
+				}
+
+				if err := service.DeleteSubnet(*subnetToDelete); err != nil {
+					if !step.expectedErrorHandler(err) {
+						t.Fatalf("%v: unexpected error returned creating new subnet: %v", index, err)
 					}
 				}
 			}
