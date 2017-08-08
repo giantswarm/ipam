@@ -13,11 +13,11 @@ import (
 func TestNew(t *testing.T) {
 	testLogger, err := micrologger.New(micrologger.DefaultConfig())
 	if err != nil {
-		t.Fatalf("%v: error creating new logger: %v", err)
+		t.Fatalf("error creating new logger: %v", err)
 	}
 	testStorage, err := memory.New(memory.DefaultConfig())
 	if err != nil {
-		t.Fatalf("%v: error creating new storage: %v", err)
+		t.Fatalf("error creating new storage: %v", err)
 	}
 
 	_, testNetwork, _ := net.ParseCIDR("10.4.0.0/16")
@@ -101,41 +101,6 @@ func TestNew(t *testing.T) {
 			if service == nil {
 				t.Fatalf("%v: service is nil", index)
 			}
-		}
-	}
-}
-
-// TestKey tests the key function.
-func TestKey(t *testing.T) {
-	tests := []struct {
-		network     string
-		expectedKey string
-	}{
-		{
-			network:     "10.4.0.0/16",
-			expectedKey: "/ipam/subnet/10.4.0.0-16",
-		},
-		{
-			network:     "192.168.1.0/24",
-			expectedKey: "/ipam/subnet/192.168.1.0-24",
-		},
-	}
-
-	for index, test := range tests {
-		_, network, err := net.ParseCIDR(test.network)
-		if err != nil {
-			t.Fatalf("%v: error returned parsing network cidr: %v", index, err)
-		}
-
-		returnedKey := key(*network)
-
-		if returnedKey != test.expectedKey {
-			t.Fatalf(
-				"%v: returned key did not match expected key.\nexpected: %v\nreturned: %v\n",
-				index,
-				test.expectedKey,
-				returnedKey,
-			)
 		}
 	}
 }
@@ -290,11 +255,11 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 		// Create a new IPAM service.
 		logger, err := micrologger.New(micrologger.DefaultConfig())
 		if err != nil {
-			t.Fatalf("%v: error creating new logger: %v", err)
+			t.Fatalf("%v: error creating new logger: %v", index, err)
 		}
 		storage, err := memory.New(memory.DefaultConfig())
 		if err != nil {
-			t.Fatalf("%v: error creating new storage: %v", err)
+			t.Fatalf("%v: error creating new storage: %v", index, err)
 		}
 
 		config := DefaultConfig()

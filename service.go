@@ -2,9 +2,7 @@ package ipam
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/giantswarm/microerror"
@@ -77,14 +75,6 @@ type Service struct {
 	network net.IPNet
 }
 
-// key returns a storage key for a given network.
-func key(network net.IPNet) string {
-	return fmt.Sprintf(
-		IPAMSubnetStorageKeyFormat,
-		strings.Replace(network.String(), "/", "-", -1),
-	)
-}
-
 // listSubnets retrieves the stored subnets from storage and returns them.
 func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 	s.logger.Log("info", "listing subnets")
@@ -99,7 +89,7 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 		// Storage returns the relative key with List, not the values.
 		// Instead of then requesting each value, we revert the key to a valid
 		// CIDR string.
-		existingSubnetString = strings.Replace(existingSubnetString, "-", "/", -1)
+		existingSubnetString = decodeRelativeKey(existingSubnetString)
 
 		_, existingSubnet, err := net.ParseCIDR(existingSubnetString)
 		if err != nil {
@@ -133,7 +123,7 @@ func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
 	}
 
 	s.logger.Log("info", "putting subnet", "subnet", subnet.String())
-	if err := s.storage.Put(ctx, key(subnet), subnet.String()); err != nil {
+	if err := s.storage.Put(ctx, encodeKey(subnet), subnet.String()); err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
@@ -148,7 +138,7 @@ func (s *Service) DeleteSubnet(subnet net.IPNet) error {
 
 	ctx := context.Background()
 
-	if err := s.storage.Delete(ctx, key(subnet)); err != nil {
+	if err := s.storage.Delete(ctx, encodeKey(subnet)); err != nil {
 		return microerror.Mask(err)
 	}
 
