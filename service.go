@@ -114,10 +114,9 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 
 	existingSubnets := []net.IPNet{}
 	for _, existingSubnetString := range existingSubnetStrings {
-		// TODO: memory storage seems to return the end of the key with List,
-		// not the value. This reverts `key` to provide a valid CIDR string,
-		// and is (technically) safe for other storages.
-		// tl;dr - fix memory storage returning the wrong thing.
+		// Storage returns the relative key with List, not the values.
+		// Instead of then requesting each value, we revert the key to a valid
+		// CIDR string.
 		existingSubnetString = strings.Replace(existingSubnetString, "-", "/", -1)
 
 		_, existingSubnet, err := net.ParseCIDR(existingSubnetString)
