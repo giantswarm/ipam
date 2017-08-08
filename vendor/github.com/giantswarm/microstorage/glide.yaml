@@ -1,0 +1,4 @@
+package: github.com/giantswarm/microstorage
+import:
+- package: github.com/giantswarm/microerror
+  version: master

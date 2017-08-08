@@ -52,3 +52,10 @@ var incorrectNumberOfFreeRangesError = microerror.New("incorrect number of free 
 func IsIncorrectNumberOfFreeRanges(err error) bool {
 	return microerror.Cause(err) == incorrectNumberOfFreeRangesError
 }
+
+var invalidConfigError = microerror.New("invalid config")
+
+// IsInvalidConfig asserts invalidConfigError.
+func IsInvalidConfig(err error) bool {
+	return microerror.Cause(err) == invalidConfigError
+}
