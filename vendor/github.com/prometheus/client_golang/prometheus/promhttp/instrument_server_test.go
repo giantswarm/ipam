@@ -14,6 +14,7 @@
 package promhttp
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -48,6 +49,16 @@ func TestMiddlewareAPI(t *testing.T) {
 		[]string{"method"},
 	)
 
+	writeHeaderVec := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:        "write_header_duration_seconds",
+			Help:        "A histogram of time to first write latencies.",
+			Buckets:     prometheus.DefBuckets,
+			ConstLabels: prometheus.Labels{"handler": "api"},
+		},
+		[]string{},
+	)
+
 	responseSize := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "push_request_size_bytes",
@@ -61,12 +72,14 @@ func TestMiddlewareAPI(t *testing.T) {
 		w.Write([]byte("OK"))
 	})
 
-	reg.MustRegister(inFlightGauge, counter, histVec, responseSize)
+	reg.MustRegister(inFlightGauge, counter, histVec, responseSize, writeHeaderVec)
 
 	chain := InstrumentHandlerInFlight(inFlightGauge,
 		InstrumentHandlerCounter(counter,
 			InstrumentHandlerDuration(histVec,
-				InstrumentHandlerResponseSize(responseSize, handler),
+				InstrumentHandlerTimeToWriteHeader(writeHeaderVec,
+					InstrumentHandlerResponseSize(responseSize, handler),
+				),
 			),
 		),
 	)
@@ -74,6 +87,62 @@ func TestMiddlewareAPI(t *testing.T) {
 	r, _ := http.NewRequest("GET", "www.example.com", nil)
 	w := httptest.NewRecorder()
 	chain.ServeHTTP(w, r)
+}
+
+func TestInstrumentTimeToFirstWrite(t *testing.T) {
+	var i int
+	dobs := &responseWriterDelegator{
+		ResponseWriter: httptest.NewRecorder(),
+		observeWriteHeader: func(status int) {
+			i = status
+		},
+	}
+	d := newDelegator(dobs, nil)
+
+	d.WriteHeader(http.StatusOK)
+
+	if i != http.StatusOK {
+		t.Fatalf("failed to execute observeWriteHeader")
+	}
+}
+
+// testResponseWriter is an http.ResponseWriter that also implements
+// http.CloseNotifier, http.Flusher, and io.ReaderFrom.
+type testResponseWriter struct {
+	closeNotifyCalled, flushCalled, readFromCalled bool
+}
+
+func (t *testResponseWriter) Header() http.Header       { return nil }
+func (t *testResponseWriter) Write([]byte) (int, error) { return 0, nil }
+func (t *testResponseWriter) WriteHeader(int)           {}
+func (t *testResponseWriter) CloseNotify() <-chan bool {
+	t.closeNotifyCalled = true
+	return nil
+}
+func (t *testResponseWriter) Flush() { t.flushCalled = true }
+func (t *testResponseWriter) ReadFrom(io.Reader) (int64, error) {
+	t.readFromCalled = true
+	return 0, nil
+}
+
+func TestInterfaceUpgrade(t *testing.T) {
+	w := &testResponseWriter{}
+	d := newDelegator(w, nil)
+	d.(http.CloseNotifier).CloseNotify()
+	if !w.closeNotifyCalled {
+		t.Error("CloseNotify not called")
+	}
+	d.(http.Flusher).Flush()
+	if !w.flushCalled {
+		t.Error("Flush not called")
+	}
+	d.(io.ReaderFrom).ReadFrom(nil)
+	if !w.readFromCalled {
+		t.Error("ReadFrom not called")
+	}
+	if _, ok := d.(http.Hijacker); ok {
+		t.Error("delegator unexpectedly implements http.Hijacker")
+	}
 }
 
 func ExampleInstrumentHandlerDuration() {

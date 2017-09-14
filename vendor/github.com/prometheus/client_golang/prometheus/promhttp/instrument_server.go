@@ -14,9 +14,6 @@
 package promhttp
 
 import (
-	"bufio"
-	"io"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -57,13 +54,16 @@ func InstrumentHandlerInFlight(g prometheus.Gauge, next http.Handler) http.Handl
 // If the wrapped Handler does not set a status code, a status code of 200 is assumed.
 //
 // If the wrapped Handler panics, no values are reported.
+//
+// Note that this method is only guaranteed to never observe negative durations
+// if used with Go1.9+.
 func InstrumentHandlerDuration(obs prometheus.ObserverVec, next http.Handler) http.HandlerFunc {
 	code, method := checkLabels(obs)
 
 	if code {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			now := time.Now()
-			d := newDelegator(w)
+			d := newDelegator(w, nil)
 			next.ServeHTTP(d, r)
 
 			obs.With(labels(code, method, r.Method, d.Status())).Observe(time.Since(now).Seconds())
@@ -96,7 +96,7 @@ func InstrumentHandlerCounter(counter *prometheus.CounterVec, next http.Handler)
 
 	if code {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			d := newDelegator(w)
+			d := newDelegator(w, nil)
 			next.ServeHTTP(d, r)
 			counter.With(labels(code, method, r.Method, d.Status())).Inc()
 		})
@@ -105,6 +105,37 @@ func InstrumentHandlerCounter(counter *prometheus.CounterVec, next http.Handler)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		counter.With(labels(code, method, r.Method, 0)).Inc()
+	})
+}
+
+// InstrumentHandlerTimeToWriteHeader is a middleware that wraps the provided
+// http.Handler to observe with the provided ObserverVec the request duration
+// until the response headers are written. The ObserverVec must have zero, one,
+// or two labels. The only allowed label names are "code" and "method". The
+// function panics if any other instance labels are provided. The Observe
+// method of the Observer in the ObserverVec is called with the request
+// duration in seconds. Partitioning happens by HTTP status code and/or HTTP
+// method if the respective instance label names are present in the
+// ObserverVec. For unpartitioned observations, use an ObserverVec with zero
+// labels. Note that partitioning of Histograms is expensive and should be used
+// judiciously.
+//
+// If the wrapped Handler panics before calling WriteHeader, no value is
+// reported.
+//
+// Note that this method is only guaranteed to never observe negative durations
+// if used with Go1.9+.
+//
+// See the example for InstrumentHandlerDuration for example usage.
+func InstrumentHandlerTimeToWriteHeader(obs prometheus.ObserverVec, next http.Handler) http.HandlerFunc {
+	code, method := checkLabels(obs)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now()
+		d := newDelegator(w, func(status int) {
+			obs.With(labels(code, method, r.Method, status)).Observe(time.Since(now).Seconds())
+		})
+		next.ServeHTTP(d, r)
 	})
 }
 
@@ -129,7 +160,7 @@ func InstrumentHandlerRequestSize(obs prometheus.ObserverVec, next http.Handler)
 
 	if code {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			d := newDelegator(w)
+			d := newDelegator(w, nil)
 			next.ServeHTTP(d, r)
 			size := computeApproximateRequestSize(r)
 			obs.With(labels(code, method, r.Method, d.Status())).Observe(float64(size))
@@ -162,7 +193,7 @@ func InstrumentHandlerRequestSize(obs prometheus.ObserverVec, next http.Handler)
 func InstrumentHandlerResponseSize(obs prometheus.ObserverVec, next http.Handler) http.Handler {
 	code, method := checkLabels(obs)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		d := newDelegator(w)
+		d := newDelegator(w, nil)
 		next.ServeHTTP(d, r)
 		obs.With(labels(code, method, r.Method, d.Status())).Observe(float64(d.Written()))
 	})
@@ -406,68 +437,4 @@ func sanitizeCode(s int) string {
 	default:
 		return strconv.Itoa(s)
 	}
-}
-
-type delegator interface {
-	Status() int
-	Written() int64
-
-	http.ResponseWriter
-}
-
-type responseWriterDelegator struct {
-	http.ResponseWriter
-
-	handler, method string
-	status          int
-	written         int64
-	wroteHeader     bool
-}
-
-func (r *responseWriterDelegator) Status() int {
-	return r.status
-}
-
-func (r *responseWriterDelegator) Written() int64 {
-	return r.written
-}
-
-func (r *responseWriterDelegator) WriteHeader(code int) {
-	r.status = code
-	r.wroteHeader = true
-	r.ResponseWriter.WriteHeader(code)
-}
-
-func (r *responseWriterDelegator) Write(b []byte) (int, error) {
-	if !r.wroteHeader {
-		r.WriteHeader(http.StatusOK)
-	}
-	n, err := r.ResponseWriter.Write(b)
-	r.written += int64(n)
-	return n, err
-}
-
-type fancyDelegator struct {
-	*responseWriterDelegator
-}
-
-func (r *fancyDelegator) CloseNotify() <-chan bool {
-	return r.ResponseWriter.(http.CloseNotifier).CloseNotify()
-}
-
-func (r *fancyDelegator) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return r.ResponseWriter.(http.Hijacker).Hijack()
-}
-
-func (r *fancyDelegator) Flush() {
-	r.ResponseWriter.(http.Flusher).Flush()
-}
-
-func (r *fancyDelegator) ReadFrom(re io.Reader) (int64, error) {
-	if !r.wroteHeader {
-		r.WriteHeader(http.StatusOK)
-	}
-	n, err := r.ResponseWriter.(io.ReaderFrom).ReadFrom(re)
-	r.written += n
-	return n, err
 }
