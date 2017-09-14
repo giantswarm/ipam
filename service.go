@@ -79,17 +79,21 @@ type Service struct {
 func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 	s.logger.Log("info", "listing subnets")
 
-	existingSubnetStrings, err := s.storage.List(ctx, IPAMSubnetStorageKey)
+	k, err := microstorage.NewK(IPAMSubnetStorageKey)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	kvs, err := s.storage.List(ctx, k)
 	if err != nil && !microstorage.IsNotFound(err) {
 		return nil, microerror.Mask(err)
 	}
 
 	existingSubnets := []net.IPNet{}
-	for _, existingSubnetString := range existingSubnetStrings {
+	for _, kv := range kvs {
 		// Storage returns the relative key with List, not the values.
 		// Instead of then requesting each value, we revert the key to a valid
 		// CIDR string.
-		existingSubnetString = decodeRelativeKey(existingSubnetString)
+		existingSubnetString := decodeRelativeKey(kv.Val())
 
 		_, existingSubnet, err := net.ParseCIDR(existingSubnetString)
 		if err != nil {
@@ -123,7 +127,11 @@ func (s *Service) NewSubnet(mask net.IPMask) (net.IPNet, error) {
 	}
 
 	s.logger.Log("info", "putting subnet", "subnet", subnet.String())
-	if err := s.storage.Put(ctx, encodeKey(subnet), subnet.String()); err != nil {
+	kv, err := microstorage.NewKV(encodeKey(subnet), subnet.String())
+	if err != nil {
+		return net.IPNet{}, microerror.Mask(err)
+	}
+	if err := s.storage.Put(ctx, kv); err != nil {
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
@@ -138,7 +146,11 @@ func (s *Service) DeleteSubnet(subnet net.IPNet) error {
 
 	ctx := context.Background()
 
-	if err := s.storage.Delete(ctx, encodeKey(subnet)); err != nil {
+	k, err := microstorage.NewK(encodeKey(subnet))
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	if err := s.storage.Delete(ctx, k); err != nil {
 		return microerror.Mask(err)
 	}
 
