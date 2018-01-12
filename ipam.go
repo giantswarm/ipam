@@ -182,3 +182,30 @@ func Free(network net.IPNet, mask net.IPMask, subnets []net.IPNet) (net.IPNet, e
 
 	return freeNetwork, nil
 }
+
+// Half takes a networks and returns two subnets which split this network in
+// a half.
+func Half(network net.IPNet) (first, second net.IPNet, err error) {
+	// One bit bigger mask will give a second half of a network.
+	ones, bits := network.Mask.Size()
+	if ones == bits {
+		return net.IPNet{}, net.IPNet{}, microerror.Maskf(maskTooBigError, "single IP mask %q is not allowed", network.Mask.String())
+	}
+
+	ones++
+	mask := net.CIDRMask(ones, bits)
+
+	// Compute first half.
+	first, err = Free(network, mask, nil)
+	if err != nil {
+		return net.IPNet{}, net.IPNet{}, microerror.Mask(err)
+	}
+
+	// Second half is computed by getting next free.
+	second, err = Free(network, mask, []net.IPNet{first})
+	if err != nil {
+		return net.IPNet{}, net.IPNet{}, microerror.Mask(err)
+	}
+
+	return first, second, nil
+}
