@@ -534,6 +534,72 @@ func TestSpace(t *testing.T) {
 	}
 }
 
+func TestConains(t *testing.T) {
+	tests := []struct {
+		Network          string
+		Subnet           string
+		ExpectedContains bool
+	}{
+		{ // Test 0.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.4.0.0/17",
+			ExpectedContains: true,
+		},
+		{ // Test 1.
+			Network:          "10.4.0.1/16",
+			Subnet:           "10.4.0.0/17",
+			ExpectedContains: true,
+		},
+		{ // Test 2.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.4.0.0/16",
+			ExpectedContains: true,
+		},
+		{ // Test 3.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.4.20.0/16",
+			ExpectedContains: true,
+		},
+		{ // Test 4.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.4.20.0/17",
+			ExpectedContains: true,
+		},
+		{ // Test 5.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.4.0.0/15",
+			ExpectedContains: false,
+		},
+		{ // Test 6.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.3.0.0/16",
+			ExpectedContains: false,
+		},
+		{ // Test 7.
+			Network:          "10.4.0.0/16",
+			Subnet:           "10.3.0.0/32",
+			ExpectedContains: false,
+		},
+	}
+
+	for i, tc := range tests {
+		_, network, err := net.ParseCIDR(tc.Network)
+		if err != nil {
+			t.Fatalf("test %d: could not parse cidr: %v", i, tc.Network)
+		}
+		_, subnet, err := net.ParseCIDR(tc.Subnet)
+		if err != nil {
+			t.Fatalf("test %d: could not parse cidr: %v", i, tc.Subnet)
+		}
+
+		contains := Conains(*network, *subnet)
+
+		if contains != tc.ExpectedContains {
+			t.Errorf("test %d: expected contains = %v, got %v", i, contains, tc.ExpectedContains)
+		}
+	}
+}
+
 // TestFree tests the Free function.
 func TestFree(t *testing.T) {
 	tests := []struct {
