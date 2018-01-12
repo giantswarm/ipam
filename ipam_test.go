@@ -735,3 +735,54 @@ func TestFree(t *testing.T) {
 		}
 	}
 }
+
+func TestHalf(t *testing.T) {
+	tests := []struct {
+		Network              string
+		ExpectedFirst        string
+		ExpectedSecond       string
+		ExpectedErrorMatcher func(error) bool
+	}{
+		{ // Test 0.
+			Network:              "10.4.0.0/16",
+			ExpectedFirst:        "10.4.0.0/17",
+			ExpectedSecond:       "10.4.128.0/17",
+			ExpectedErrorMatcher: nil,
+		},
+		{ // Test 1.
+			Network:              "10.4.0.0/32",
+			ExpectedFirst:        "<nil>",
+			ExpectedSecond:       "<nil>",
+			ExpectedErrorMatcher: IsMaskTooBig,
+		},
+		{ // Test 2.
+			Network:              "10.4.0.0/31",
+			ExpectedFirst:        "10.4.0.0/32",
+			ExpectedSecond:       "10.4.0.1/32",
+			ExpectedErrorMatcher: nil,
+		},
+	}
+
+	for i, tc := range tests {
+		_, network, err := net.ParseCIDR(tc.Network)
+		if err != nil {
+			t.Fatalf("test %d: could not parse cidr: %v", i, tc.Network)
+		}
+
+		first, second, err := Half(*network)
+
+		if tc.ExpectedErrorMatcher == nil && err != nil {
+			t.Errorf("test %d: unexpected err = %#v", i, err)
+		}
+		if tc.ExpectedErrorMatcher != nil && !tc.ExpectedErrorMatcher(err) {
+			t.Errorf("test %d: unexpected err = %#v", i, err)
+		}
+
+		if first.String() != tc.ExpectedFirst {
+			t.Errorf("test %d: expected first = %q, got %q", i, first.String(), tc.ExpectedFirst)
+		}
+		if second.String() != tc.ExpectedSecond {
+			t.Errorf("test %d: expected second = %q, got %q", i, second.String(), tc.ExpectedSecond)
+		}
+	}
+}
