@@ -540,42 +540,50 @@ func TestConains(t *testing.T) {
 		Subnet           string
 		ExpectedContains bool
 	}{
-		{ // Test 0.
+		// Test 0.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.4.0.0/17",
 			ExpectedContains: true,
 		},
-		{ // Test 1.
+		// Test 1.
+		{
 			Network:          "10.4.0.1/16",
 			Subnet:           "10.4.0.0/17",
 			ExpectedContains: true,
 		},
-		{ // Test 2.
+		// Test 2.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.4.0.0/16",
 			ExpectedContains: true,
 		},
-		{ // Test 3.
+		// Test 3.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.4.20.0/16",
 			ExpectedContains: true,
 		},
-		{ // Test 4.
+		// Test 4.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.4.20.0/17",
 			ExpectedContains: true,
 		},
-		{ // Test 5.
+		// Test 5.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.4.0.0/15",
 			ExpectedContains: false,
 		},
-		{ // Test 6.
+		// Test 6.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.3.0.0/16",
 			ExpectedContains: false,
 		},
-		{ // Test 7.
+		// Test 7.
+		{
 			Network:          "10.4.0.0/16",
 			Subnet:           "10.3.0.0/32",
 			ExpectedContains: false,
@@ -809,19 +817,22 @@ func TestHalf(t *testing.T) {
 		ExpectedSecond       string
 		ExpectedErrorMatcher func(error) bool
 	}{
-		{ // Test 0.
+		// Test 0.
+		{
 			Network:              "10.4.0.0/16",
 			ExpectedFirst:        "10.4.0.0/17",
 			ExpectedSecond:       "10.4.128.0/17",
 			ExpectedErrorMatcher: nil,
 		},
-		{ // Test 1.
+		// Test 1.
+		{
 			Network:              "10.4.0.0/32",
 			ExpectedFirst:        "<nil>",
 			ExpectedSecond:       "<nil>",
 			ExpectedErrorMatcher: IsMaskTooBig,
 		},
-		{ // Test 2.
+		// Test 2.
+		{
 			Network:              "10.4.0.0/31",
 			ExpectedFirst:        "10.4.0.0/32",
 			ExpectedSecond:       "10.4.0.1/32",
