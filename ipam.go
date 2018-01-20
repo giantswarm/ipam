@@ -128,7 +128,7 @@ func space(freeIPRanges []ipRange, mask net.IPMask) (net.IP, error) {
 
 // Contains returns true when the subnet is a part of the network, false
 // otherwise.
-func Conains(network, subnet net.IPNet) bool {
+func Contains(network, subnet net.IPNet) bool {
 	subnetRange := newIPRange(subnet)
 	return network.Contains(subnetRange.start) && network.Contains(subnetRange.end)
 }

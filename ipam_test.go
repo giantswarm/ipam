@@ -600,7 +600,7 @@ func TestConains(t *testing.T) {
 			t.Fatalf("test %d: could not parse cidr: %v", i, tc.Subnet)
 		}
 
-		contains := Conains(*network, *subnet)
+		contains := Contains(*network, *subnet)
 
 		if contains != tc.ExpectedContains {
 			t.Errorf("test %d: expected contains = %v, got %v", i, contains, tc.ExpectedContains)
