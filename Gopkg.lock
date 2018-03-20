@@ -11,15 +11,17 @@
   branch = "master"
   name = "github.com/giantswarm/microerror"
   packages = ["."]
-  revision = "5ade94eb4ee35ef72eb9382228470caeddb29989"
+  revision = "325932fa68e70dd4464598f11e2f710ac1aaec46"
 
 [[projects]]
+  branch = "master"
   name = "github.com/giantswarm/micrologger"
   packages = [
     ".",
+    "loggermeta",
     "microloggertest"
   ]
-  revision = "8a69b2ab80ba2d0bd40d609206518fefacfc8fdf"
+  revision = "2aaea11da0707ebb7f9fbabb07028a37b00efc16"
 
 [[projects]]
   branch = "master"
@@ -28,13 +30,13 @@
     ".",
     "memory"
   ]
-  revision = "e990a46ff7c9065f8d83c0a649cb1a6ef5d411d7"
+  revision = "4411a6307c6b844b7f9e68aaba37407b41b1c4d7"
 
 [[projects]]
   name = "github.com/go-kit/kit"
   packages = ["log"]
-  revision = "a9ca6725cbbea455e61c6bc8a1ed28e81eb3493b"
-  version = "v0.5.0"
+  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
+  version = "v0.6.0"
 
 [[projects]]
   name = "github.com/go-logfmt/logfmt"
@@ -45,13 +47,14 @@
 [[projects]]
   name = "github.com/go-stack/stack"
   packages = ["."]
-  revision = "100eb0c0a9c5b306ca2fb4f165df21d80ada4b82"
-  version = "v1.5.2"
+  revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
+  version = "v1.7.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "4bd1920723d7b7c925de087aa32e2187708897f7"
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -66,38 +69,43 @@
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
-  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
-  revision = "50b3332fd63be43e38472600ec187ceec39d26d6"
+  revision = "d49167c4b9f3c4451707560c5c71471ff5291aaa"
 
 [[projects]]
+  branch = "master"
   name = "github.com/prometheus/client_model"
   packages = ["go"]
-  revision = "6f3806018612930941127f2a7c6c453ba2c527d2"
+  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
 
 [[projects]]
+  branch = "master"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
-  revision = "49fee292b27bfff7f354ee0f64e1bc4850462edf"
+  revision = "e4aa40a9169a88835b849a6efb71e05dc04b88f0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
+    "internal/util",
+    "nfs",
     "xfs"
   ]
-  revision = "a1dba9ce8baed984a2495b658c82687f8157b98f"
+  revision = "54d17b57dd7d4a3aa092476596b3f8a933bde349"
 
 [solve-meta]
   analyzer-name = "dep"
