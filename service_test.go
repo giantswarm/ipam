@@ -12,7 +12,7 @@ import (
 // TestNew tests the New function.
 func TestNew(t *testing.T) {
 	testLogger := microloggertest.New()
-	testStorage, err := memory.New(memory.DefaultConfig())
+	testStorage, err := memory.New(memory.Config{})
 	if err != nil {
 		t.Fatalf("error creating new storage: %v", err)
 	}
@@ -27,11 +27,11 @@ func TestNew(t *testing.T) {
 		// returns a new IPAM service.
 		{
 			config: func() Config {
-				c := DefaultConfig()
-
-				c.Logger = testLogger
-				c.Storage = testStorage
-				c.Network = testNetwork
+				c := Config{
+					Logger:  testLogger,
+					Storage: testStorage,
+					Network: testNetwork,
+				}
 
 				return c
 			},
@@ -40,11 +40,11 @@ func TestNew(t *testing.T) {
 		// Test that a config with a nil logger returns an invalid config error.
 		{
 			config: func() Config {
-				c := DefaultConfig()
-
-				c.Logger = nil
-				c.Storage = testStorage
-				c.Network = testNetwork
+				c := Config{
+					Logger:  nil,
+					Storage: testStorage,
+					Network: testNetwork,
+				}
 
 				return c
 			},
@@ -54,11 +54,11 @@ func TestNew(t *testing.T) {
 		// Test that a config with a nil storage returns an invalid config error.
 		{
 			config: func() Config {
-				c := DefaultConfig()
-
-				c.Logger = testLogger
-				c.Storage = nil
-				c.Network = testNetwork
+				c := Config{
+					Logger:  testLogger,
+					Storage: nil,
+					Network: testNetwork,
+				}
 
 				return c
 			},
@@ -68,11 +68,11 @@ func TestNew(t *testing.T) {
 		// Test that a config with an empty network returns an invalid config error.
 		{
 			config: func() Config {
-				c := DefaultConfig()
-
-				c.Logger = testLogger
-				c.Storage = testStorage
-				c.Network = nil
+				c := Config{
+					Logger:  testLogger,
+					Storage: testStorage,
+					Network: nil,
+				}
 
 				return c
 			},
@@ -251,15 +251,16 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 
 		// Create a new IPAM service.
 		logger := microloggertest.New()
-		storage, err := memory.New(memory.DefaultConfig())
+		storage, err := memory.New(memory.Config{})
 		if err != nil {
 			t.Fatalf("%v: error creating new storage: %v", index, err)
 		}
 
-		config := DefaultConfig()
-		config.Logger = logger
-		config.Storage = storage
-		config.Network = network
+		config := Config{
+			Logger:  logger,
+			Storage: storage,
+			Network: network,
+		}
 
 		service, err := New(config)
 		if err != nil {
@@ -399,7 +400,7 @@ func TestNewWithAllocatedNetworks(t *testing.T) {
 
 	for index, test := range tests {
 		logger := microloggertest.New()
-		storage, err := memory.New(memory.DefaultConfig())
+		storage, err := memory.New(memory.Config{})
 		if err != nil {
 			t.Fatalf("%v: error creating new storage: %v", index, err)
 		}
@@ -422,12 +423,13 @@ func TestNewWithAllocatedNetworks(t *testing.T) {
 			}
 		}
 
-		config := DefaultConfig()
-		config.Logger = logger
-		config.Storage = storage
+		config := Config{
+			Logger:  logger,
+			Storage: storage,
 
-		config.AllocatedSubnets = allocatedSubnets
-		config.Network = network
+			AllocatedSubnets: allocatedSubnets,
+			Network:          network,
+		}
 
 		service, err := New(config)
 		if err != nil && test.expectedErrorHandler == nil {
