@@ -13,13 +13,14 @@ import (
 func Example() {
 	// Construct a new IPAM service.
 	logger := microloggertest.New()
-	storage, _ := memory.New(memory.DefaultConfig())
+	storage, _ := memory.New(memory.Config{})
 	_, network, _ := net.ParseCIDR("10.4.0.0/16")
 
-	config := DefaultConfig()
-	config.Logger = logger
-	config.Storage = storage
-	config.Network = network
+	config := Config{
+		Logger:  logger,
+		Storage: storage,
+		Network: network,
+	}
 
 	service, _ := New(config)
 
