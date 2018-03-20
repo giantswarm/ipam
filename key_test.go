@@ -40,24 +40,24 @@ func TestEncodeKey(t *testing.T) {
 	}
 }
 
-// TestDecodeRelativeKey tests the decodeRelativeKey function.
-func TestDecodeRelativeKey(t *testing.T) {
+// TestDecodeKey tests the decodeKey function.
+func TestDecodeKey(t *testing.T) {
 	tests := []struct {
 		key             string
 		expectedNetwork string
 	}{
 		{
-			key:             "10.4.0.0-16",
+			key:             "/ipam/subnet/10.4.0.0-16",
 			expectedNetwork: "10.4.0.0/16",
 		},
 		{
-			key:             "192.168.1.0-24",
+			key:             "/ipam/subnet/192.168.1.0-24",
 			expectedNetwork: "192.168.1.0/24",
 		},
 	}
 
 	for index, test := range tests {
-		returnedNetwork := decodeRelativeKey(test.key)
+		returnedNetwork := decodeKey(test.key)
 
 		if returnedNetwork != test.expectedNetwork {
 			t.Fatalf(

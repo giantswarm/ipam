@@ -2,6 +2,8 @@ package ipam
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -102,7 +104,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-// TestNewSubnetAndDeleteSubnet tests that NewSubnet and DeleteSubnet methods work together correctly.
+// TestNewSubnetAndDeleteSubnet tests that CreateSubnet and DeleteSubnet methods work together correctly.
 func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 	type step struct {
 		// add is true if we create a subnet, false if we delete one.
@@ -271,14 +273,14 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 			if step.add {
 				mask := net.CIDRMask(step.mask, 32)
 
-				returnedSubnet, err := service.NewSubnet(mask)
+				returnedSubnet, err := service.CreateSubnet(context.Background(), mask, fmt.Sprintf("test-%d", index))
 				if err != nil {
 					if step.expectedErrorHandler != nil {
 						if !step.expectedErrorHandler(err) {
 							t.Fatalf("%v: incorrect error returned creating new subnet: %v", index, err)
 						}
 					} else {
-						t.Fatalf("%v: unexpected error returned creating new subnet: %v", index, err)
+						t.Fatalf("%v: unexpected error returned creating new subnet: %#v", index, err)
 					}
 				} else {
 					_, expectedSubnet, err := net.ParseCIDR(step.expectedSubnet)
@@ -301,7 +303,7 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 					t.Fatalf("%v: error returned parsing network cidr: %v", index, err)
 				}
 
-				if err := service.DeleteSubnet(*subnetToDelete); err != nil {
+				if err := service.DeleteSubnet(context.Background(), *subnetToDelete); err != nil {
 					if !step.expectedErrorHandler(err) {
 						t.Fatalf("%v: unexpected error returned creating new subnet: %v", index, err)
 					}
@@ -311,7 +313,7 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 	}
 }
 
-// TestNewWithAllocatedNetworks tests that the NewSubnet method works correctly
+// TestNewWithAllocatedNetworks tests that the CreateSubnet method works correctly
 // with the allocated networks configuration.
 func TestNewWithAllocatedNetworks(t *testing.T) {
 	tests := []struct {
@@ -448,7 +450,7 @@ func TestNewWithAllocatedNetworks(t *testing.T) {
 				t.Fatalf("%v: error returned parsing expected subnet: %v", index, err)
 			}
 
-			returnedSubnet, err := service.NewSubnet(net.CIDRMask(test.mask, 32))
+			returnedSubnet, err := service.CreateSubnet(context.Background(), net.CIDRMask(test.mask, 32), fmt.Sprintf("test-%d", index))
 			if err != nil {
 				t.Fatalf("%v: error returned creating new subnet: %v\n", index, err)
 			}
