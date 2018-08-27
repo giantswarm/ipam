@@ -535,6 +535,83 @@ func TestSpace(t *testing.T) {
 	}
 }
 
+func TestContains(t *testing.T) {
+	tests := []struct {
+		name             string
+		network          string
+		subnet           string
+		expectedContains bool
+	}{
+		{
+			name:             "case 0: test CIDR contains smaller subnet",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.0.0/17",
+			expectedContains: true,
+		},
+		{
+			name:             "case 1: test CIDR with IP contains smaller subnet",
+			network:          "10.4.0.1/16",
+			subnet:           "10.4.0.0/17",
+			expectedContains: true,
+		},
+		{
+			name:             "case 2: test CIDR contains itself",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.0.0/16",
+			expectedContains: true,
+		},
+		{
+			name:             "case 3: test CIDR contains itself but with different representation",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.20.0/16",
+			expectedContains: true,
+		},
+		{
+			name:             "case 4: test CIDR contains smaller subnet with IP representation",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.20.0/17",
+			expectedContains: true,
+		},
+		{
+			name:             "case 5: test CIDR doesn't contain subnet that is actually larger than network range",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.0.0/15",
+			expectedContains: false,
+		},
+		{
+			name:             "case 6: test CIDR doesn't contain different sibling network",
+			network:          "10.4.0.0/16",
+			subnet:           "10.3.0.0/16",
+			expectedContains: false,
+		},
+		{
+			name:             "case 7: test CIDR doesn't contain specific IP from different network (sibling range)",
+			network:          "10.4.0.0/16",
+			subnet:           "10.3.0.0/32",
+			expectedContains: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, network, err := net.ParseCIDR(tc.network)
+			if err != nil {
+				t.Fatalf("could not parse cidr: %v", tc.network)
+			}
+			_, subnet, err := net.ParseCIDR(tc.subnet)
+			if err != nil {
+				t.Fatalf("could not parse cidr: %v", tc.subnet)
+			}
+
+			contains := Contains(*network, *subnet)
+
+			if contains != tc.expectedContains {
+				t.Errorf("expected contains = %v, got %v", contains, tc.expectedContains)
+			}
+		})
+	}
+}
+
 // TestFree tests the Free function.
 func TestFree(t *testing.T) {
 	tests := []struct {
@@ -761,19 +838,22 @@ func TestHalf(t *testing.T) {
 		ExpectedSecond       string
 		ExpectedErrorMatcher func(error) bool
 	}{
-		{ // Test 0.
+		// Test 0.
+		{
 			Network:              "10.4.0.0/16",
 			ExpectedFirst:        "10.4.0.0/17",
 			ExpectedSecond:       "10.4.128.0/17",
 			ExpectedErrorMatcher: nil,
 		},
-		{ // Test 1.
+		// Test 1.
+		{
 			Network:              "10.4.0.0/32",
 			ExpectedFirst:        "<nil>",
 			ExpectedSecond:       "<nil>",
 			ExpectedErrorMatcher: IsMaskTooBig,
 		},
-		{ // Test 2.
+		// Test 2.
+		{
 			Network:              "10.4.0.0/31",
 			ExpectedFirst:        "10.4.0.0/32",
 			ExpectedSecond:       "10.4.0.1/32",
