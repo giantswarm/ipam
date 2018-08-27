@@ -537,75 +537,78 @@ func TestSpace(t *testing.T) {
 
 func TestContains(t *testing.T) {
 	tests := []struct {
-		Network          string
-		Subnet           string
-		ExpectedContains bool
+		name             string
+		network          string
+		subnet           string
+		expectedContains bool
 	}{
-		// Test 0.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.4.0.0/17",
-			ExpectedContains: true,
+			name:             "case 0: test CIDR contains smaller subnet",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.0.0/17",
+			expectedContains: true,
 		},
-		// Test 1.
 		{
-			Network:          "10.4.0.1/16",
-			Subnet:           "10.4.0.0/17",
-			ExpectedContains: true,
+			name:             "case 1: test CIDR with IP contains smaller subnet",
+			network:          "10.4.0.1/16",
+			subnet:           "10.4.0.0/17",
+			expectedContains: true,
 		},
-		// Test 2.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.4.0.0/16",
-			ExpectedContains: true,
+			name:             "case 2: test CIDR contains itself",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.0.0/16",
+			expectedContains: true,
 		},
-		// Test 3.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.4.20.0/16",
-			ExpectedContains: true,
+			name:             "case 3: test CIDR contains itself but with different representation",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.20.0/16",
+			expectedContains: true,
 		},
-		// Test 4.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.4.20.0/17",
-			ExpectedContains: true,
+			name:             "case 4: test CIDR contains smaller subnet with IP representation",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.20.0/17",
+			expectedContains: true,
 		},
-		// Test 5.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.4.0.0/15",
-			ExpectedContains: false,
+			name:             "case 5: test CIDR doesn't contain subnet that is actually larger than network range",
+			network:          "10.4.0.0/16",
+			subnet:           "10.4.0.0/15",
+			expectedContains: false,
 		},
-		// Test 6.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.3.0.0/16",
-			ExpectedContains: false,
+			name:             "case 6: test CIDR doesn't contain different sibling network",
+			network:          "10.4.0.0/16",
+			subnet:           "10.3.0.0/16",
+			expectedContains: false,
 		},
-		// Test 7.
 		{
-			Network:          "10.4.0.0/16",
-			Subnet:           "10.3.0.0/32",
-			ExpectedContains: false,
+			name:             "case 7: test CIDR doesn't contain specific IP from different network (sibling range)",
+			network:          "10.4.0.0/16",
+			subnet:           "10.3.0.0/32",
+			expectedContains: false,
 		},
 	}
 
-	for i, tc := range tests {
-		_, network, err := net.ParseCIDR(tc.Network)
-		if err != nil {
-			t.Fatalf("test %d: could not parse cidr: %v", i, tc.Network)
-		}
-		_, subnet, err := net.ParseCIDR(tc.Subnet)
-		if err != nil {
-			t.Fatalf("test %d: could not parse cidr: %v", i, tc.Subnet)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, network, err := net.ParseCIDR(tc.network)
+			if err != nil {
+				t.Fatalf("could not parse cidr: %v", tc.network)
+			}
+			_, subnet, err := net.ParseCIDR(tc.subnet)
+			if err != nil {
+				t.Fatalf("could not parse cidr: %v", tc.subnet)
+			}
 
-		contains := Contains(*network, *subnet)
+			contains := Contains(*network, *subnet)
 
-		if contains != tc.ExpectedContains {
-			t.Errorf("test %d: expected contains = %v, got %v", i, contains, tc.ExpectedContains)
-		}
+			if contains != tc.expectedContains {
+				t.Errorf("expected contains = %v, got %v", contains, tc.expectedContains)
+			}
+		})
 	}
 }
 
