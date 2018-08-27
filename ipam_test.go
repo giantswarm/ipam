@@ -535,7 +535,7 @@ func TestSpace(t *testing.T) {
 	}
 }
 
-func TestConains(t *testing.T) {
+func TestContains(t *testing.T) {
 	tests := []struct {
 		Network          string
 		Subnet           string
