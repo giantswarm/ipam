@@ -2,6 +2,7 @@ package ipam
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -70,9 +71,61 @@ type Service struct {
 	allocatedSubnets []net.IPNet
 }
 
-// listSubnets retrieves the stored subnets from storage and returns them.
-func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
-	s.logger.LogCtx(ctx, "level", "info", "message", "listing subnets")
+// CreateSubnet returns the next available subnet, of the configured size,
+// from the configured network.
+func (s *Service) CreateSubnet(ctx context.Context, mask net.IPMask, annotation string) (net.IPNet, error) {
+	s.logger.LogCtx(ctx, "level", "debug", "message", "creating subnet")
+
+	defer updateMetrics("create", time.Now())
+
+	existingSubnets, err := s.ListSubnets(ctx)
+	if err != nil {
+		return net.IPNet{}, microerror.Mask(err)
+	}
+
+	existingSubnets = append(existingSubnets, s.allocatedSubnets...)
+
+	subnet, err := Free(s.network, mask, existingSubnets)
+	if err != nil {
+		return net.IPNet{}, microerror.Mask(err)
+	}
+
+	kv, err := microstorage.NewKV(encodeKey(subnet), annotation)
+	if err != nil {
+		return net.IPNet{}, microerror.Mask(err)
+	}
+	if err := s.storage.Put(ctx, kv); err != nil {
+		return net.IPNet{}, microerror.Mask(err)
+	}
+
+	s.logger.LogCtx(ctx, "level", "debug", "message", "created subnet")
+
+	return subnet, nil
+}
+
+// DeleteSubnet deletes the given subnet from IPAM storage,
+// meaning it can be given out again.
+func (s *Service) DeleteSubnet(ctx context.Context, subnet net.IPNet) error {
+	s.logger.LogCtx(ctx, "level", "debug", "message", fmt.Sprintf("deleting subnet %#q", subnet.String()))
+
+	defer updateMetrics("delete", time.Now())
+
+	k, err := microstorage.NewK(encodeKey(subnet))
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	if err := s.storage.Delete(ctx, k); err != nil {
+		return microerror.Mask(err)
+	}
+
+	s.logger.LogCtx(ctx, "level", "debug", "message", fmt.Sprintf("deleted subnet %#q", subnet.String()))
+
+	return nil
+}
+
+// ListSubnets retrieves the stored subnets from storage and returns them.
+func (s *Service) ListSubnets(ctx context.Context) ([]net.IPNet, error) {
+	s.logger.LogCtx(ctx, "level", "debug", "message", "listing subnets")
 
 	k, err := microstorage.NewK(ipamSubnetStorageKey)
 	if err != nil {
@@ -96,53 +149,7 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 
 	subnetCounter.Set(float64(len(existingSubnets)))
 
+	s.logger.LogCtx(ctx, "level", "debug", "message", "listed subnets")
+
 	return existingSubnets, nil
-}
-
-// CreateSubnet returns the next available subnet, of the configured size,
-// from the configured network.
-func (s *Service) CreateSubnet(ctx context.Context, mask net.IPMask, annotation string) (net.IPNet, error) {
-	s.logger.LogCtx(ctx, "level", "info", "message", "creating new subnet")
-	defer updateMetrics("create", time.Now())
-
-	existingSubnets, err := s.listSubnets(ctx)
-	if err != nil {
-		return net.IPNet{}, microerror.Mask(err)
-	}
-
-	existingSubnets = append(existingSubnets, s.allocatedSubnets...)
-
-	s.logger.LogCtx(ctx, "level", "info", "message", "computing next subnet")
-	subnet, err := Free(s.network, mask, existingSubnets)
-	if err != nil {
-		return net.IPNet{}, microerror.Mask(err)
-	}
-
-	s.logger.LogCtx(ctx, "level", "info", "message", "putting subnet", "subnet", subnet.String())
-	kv, err := microstorage.NewKV(encodeKey(subnet), annotation)
-	if err != nil {
-		return net.IPNet{}, microerror.Mask(err)
-	}
-	if err := s.storage.Put(ctx, kv); err != nil {
-		return net.IPNet{}, microerror.Mask(err)
-	}
-
-	return subnet, nil
-}
-
-// DeleteSubnet deletes the given subnet from IPAM storage,
-// meaning it can be given out again.
-func (s *Service) DeleteSubnet(ctx context.Context, subnet net.IPNet) error {
-	s.logger.LogCtx(ctx, "level", "info", "message", "deleting subnet", "subnet", subnet.String())
-	defer updateMetrics("delete", time.Now())
-
-	k, err := microstorage.NewK(encodeKey(subnet))
-	if err != nil {
-		return microerror.Mask(err)
-	}
-	if err := s.storage.Delete(ctx, k); err != nil {
-		return microerror.Mask(err)
-	}
-
-	return nil
 }
