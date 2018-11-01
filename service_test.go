@@ -273,7 +273,7 @@ func TestNewSubnetAndDeleteSubnet(t *testing.T) {
 			if step.add {
 				mask := net.CIDRMask(step.mask, 32)
 
-				returnedSubnet, err := service.CreateSubnet(context.Background(), mask, fmt.Sprintf("test-%d", index))
+				returnedSubnet, err := service.CreateSubnet(context.Background(), mask, fmt.Sprintf("test-%d", index), nil)
 				if err != nil {
 					if step.expectedErrorHandler != nil {
 						if !step.expectedErrorHandler(err) {
@@ -450,7 +450,7 @@ func TestNewWithAllocatedNetworks(t *testing.T) {
 				t.Fatalf("%v: error returned parsing expected subnet: %v", index, err)
 			}
 
-			returnedSubnet, err := service.CreateSubnet(context.Background(), net.CIDRMask(test.mask, 32), fmt.Sprintf("test-%d", index))
+			returnedSubnet, err := service.CreateSubnet(context.Background(), net.CIDRMask(test.mask, 32), fmt.Sprintf("test-%d", index), nil)
 			if err != nil {
 				t.Fatalf("%v: error returned creating new subnet: %v\n", index, err)
 			}
