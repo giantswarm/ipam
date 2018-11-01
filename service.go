@@ -101,7 +101,7 @@ func (s *Service) listSubnets(ctx context.Context) ([]net.IPNet, error) {
 
 // CreateSubnet returns the next available subnet, of the configured size,
 // from the configured network.
-func (s *Service) CreateSubnet(ctx context.Context, mask net.IPMask, annotation string) (net.IPNet, error) {
+func (s *Service) CreateSubnet(ctx context.Context, mask net.IPMask, annotation string, reserved []net.IPNet) (net.IPNet, error) {
 	s.logger.LogCtx(ctx, "level", "info", "message", "creating new subnet")
 	defer updateMetrics("create", time.Now())
 
@@ -110,7 +110,9 @@ func (s *Service) CreateSubnet(ctx context.Context, mask net.IPMask, annotation 
 		return net.IPNet{}, microerror.Mask(err)
 	}
 
+	existingSubnets = append(existingSubnets, reserved...)
 	existingSubnets = append(existingSubnets, s.allocatedSubnets...)
+	existingSubnets = CanonicalizeSubnets(s.network, existingSubnets)
 
 	s.logger.LogCtx(ctx, "level", "info", "message", "computing next subnet")
 	subnet, err := Free(s.network, mask, existingSubnets)

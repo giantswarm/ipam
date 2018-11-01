@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"math"
 	"net"
+	"reflect"
 	"sort"
 
 	"github.com/giantswarm/microerror"
@@ -216,4 +217,27 @@ func Half(network net.IPNet) (first, second net.IPNet, err error) {
 	}
 
 	return first, second, nil
+}
+
+func CanonicalizeSubnets(networkRange net.IPNet, subnets []net.IPNet) []net.IPNet {
+	// Naive deduplication as net.IPNet cannot be used as key for map. This
+	// should be ok for current foreseeable future.
+	for i := 0; i < len(subnets); i++ {
+		// Remove subnets that don't belong to our desired network.
+		if !networkRange.Contains(subnets[i].IP) {
+			subnets = append(subnets[:i], subnets[i+1:]...)
+			i--
+			continue
+		}
+
+		// Remove duplicates.
+		for j := i + 1; j < len(subnets); j++ {
+			if reflect.DeepEqual(subnets[i], subnets[j]) {
+				subnets = append(subnets[:j], subnets[j+1:]...)
+				j--
+			}
+		}
+	}
+
+	return subnets
 }
