@@ -1040,6 +1040,34 @@ func Test_CanonicalizeSubnets(t *testing.T) {
 				mustParseCIDR("192.168.4.0/24"),
 			},
 		},
+		{
+			name:    "case 9: ensure that smaller overlapping subnets are accepted",
+			network: mustParseCIDR("10.0.0.0/8"),
+			subnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/16"),
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/16"),
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+			},
+		},
+		{
+			name:    "case 10: same as case 9 but with different input ordering",
+			network: mustParseCIDR("10.0.0.0/8"),
+			subnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+				mustParseCIDR("10.1.0.0/16"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+				mustParseCIDR("10.1.0.0/16"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {

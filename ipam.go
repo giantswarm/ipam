@@ -220,12 +220,19 @@ func Half(network net.IPNet) (first, second net.IPNet, err error) {
 }
 
 // CanonicalizeSubnets iterates over subnets and returns deduplicated list of
-// networks that belong to networkRange.
+// networks that belong to networkRange. Subnets that overlap each other but
+// aren't exactly the same are not removed. Subnets are returned in the same
+// order as they appear in input.
 //
 // Example:
 //	  networkRange: 192.168.2.0/24
 //	  subnets: [172.168.2.0/25, 192.168.2.0/25, 192.168.3.128/25, 192.168.2.0/25, 192.168.2.128/25]
 //	  returned: [192.168.2.0/25, 192.168.2.128/25]
+//
+// Example 2:
+//	  networkRange: 10.0.0.0/8
+//	  subnets: [10.1.0.0/16, 10.1.0.0/24, 10.1.1.0/24]
+//	  returned: [10.1.0.0/16, 10.1.0.0/24, 10.1.1.0/24]
 //
 func CanonicalizeSubnets(networkRange net.IPNet, subnets []net.IPNet) []net.IPNet {
 	// Naive deduplication as net.IPNet cannot be used as key for map. This
