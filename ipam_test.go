@@ -504,6 +504,18 @@ func TestSpace(t *testing.T) {
 			mask:       23,
 			expectedIP: net.ParseIP("10.4.2.0"),
 		},
+
+		// Test allocating /24 network when the first free range starts from /26.
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.1.2.192"),
+					end:   net.ParseIP("10.1.255.255"),
+				},
+			},
+			mask:       24,
+			expectedIP: net.ParseIP("10.1.3.0"),
+		},
 	}
 
 	for index, test := range tests {
@@ -761,6 +773,29 @@ func TestFree(t *testing.T) {
 			subnets:              []string{"10.5.0.0/24"},
 			expectedErrorHandler: IsIPNotContained,
 		},
+
+		{
+			network: "10.1.0.0/16",
+			mask:    24,
+			subnets: []string{
+				"10.1.1.0/26",
+				"10.1.1.64/26",
+				"10.1.1.128/26",
+				"10.1.1.192/26",
+				"10.1.0.0/25",
+				"10.1.0.128/25",
+				"10.1.0.0/24",
+				"10.1.2.0/27",
+				"10.1.2.32/27",
+				"10.1.2.64/27",
+				"10.1.2.96/27",
+				"10.1.2.128/27",
+				"10.1.2.160/27",
+				"10.1.2.0/24",
+			},
+			expectedErrorHandler: nil,
+			expectedNetwork:      "10.1.3.0/24",
+		},
 	}
 
 	for index, test := range tests {
@@ -828,7 +863,7 @@ func ExampleFree() {
 	// Output:
 	// 10.4.0.0/24
 	// 10.4.1.0/28
-	// 10.4.1.16/24
+	// 10.4.2.0/24
 }
 
 func TestHalf(t *testing.T) {
