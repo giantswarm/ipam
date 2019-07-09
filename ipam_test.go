@@ -8,117 +8,33 @@ import (
 	"testing"
 )
 
-// ipNetEqual returns true if the given IPNets refer to the same network.
-func ipNetEqual(a, b net.IPNet) bool {
-	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
+func ExampleFree() {
+	_, network, _ := net.ParseCIDR("10.4.0.0/16")
+
+	firstSubnet, _ := Free(*network, net.CIDRMask(24, 32), []net.IPNet{})
+	fmt.Println(firstSubnet.String())
+
+	secondSubnet, _ := Free(*network, net.CIDRMask(28, 32), []net.IPNet{firstSubnet})
+	fmt.Println(secondSubnet.String())
+
+	thirdSubnet, _ := Free(*network, net.CIDRMask(24, 32), []net.IPNet{firstSubnet, secondSubnet})
+	fmt.Println(thirdSubnet.String())
+	// Output:
+	// 10.4.0.0/24
+	// 10.4.1.0/28
+	// 10.4.2.0/24
 }
 
-// ipRangesEqual returns true if both given ipRanges are equal, false otherwise.
-func ipRangesEqual(a, b []ipRange) bool {
-	if len(a) != len(b) {
-		return false
-	}
+func ExampleHalf() {
+	_, network, _ := net.ParseCIDR("10.4.0.0/16")
 
-	for i := 0; i < len(a); i++ {
-		if !a[i].start.Equal(b[i].start) {
-			return false
-		}
+	firstNetwork, secondNetwork, _ := Half(*network)
 
-		if !a[i].end.Equal(b[i].end) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// TestIPToDecimal tests the ipToDecimal function.
-func TestIPToDecimal(t *testing.T) {
-	tests := []struct {
-		ip              string
-		expectedDecimal int
-	}{
-		{
-			ip:              "0.0.0.0",
-			expectedDecimal: 0,
-		},
-		{
-			ip:              "0.0.05.3",
-			expectedDecimal: 1283,
-		},
-		{
-			ip:              "0.0.5.3",
-			expectedDecimal: 1283,
-		},
-		{
-			ip:              "10.0.0.0",
-			expectedDecimal: 167772160,
-		},
-		{
-			ip:              "10.4.0.0",
-			expectedDecimal: 168034304,
-		},
-		{
-			ip:              "255.255.255.255",
-			expectedDecimal: 4294967295,
-		},
-	}
-
-	for index, test := range tests {
-		returnedDecimal := ipToDecimal(net.ParseIP(test.ip))
-
-		if returnedDecimal != test.expectedDecimal {
-			t.Fatalf(
-				"%v: unexpected decimal returned.\nexpected: %v, returned: %v",
-				index,
-				test.expectedDecimal,
-				returnedDecimal,
-			)
-		}
-	}
-}
-
-// TestDecimalToIP tests the decimalToIP function.
-func TestDecimalToIP(t *testing.T) {
-	tests := []struct {
-		decimal    int
-		expectedIP string
-	}{
-		{
-			decimal:    0,
-			expectedIP: "0.0.0.0",
-		},
-		{
-			decimal:    1283,
-			expectedIP: "0.0.5.3",
-		},
-		{
-			decimal:    167772160,
-			expectedIP: "10.0.0.0",
-		},
-		{
-			decimal:    168034304,
-			expectedIP: "10.4.0.0",
-		},
-		{
-			decimal:    4294967295,
-			expectedIP: "255.255.255.255",
-		},
-	}
-
-	for index, test := range tests {
-		returnedIP := decimalToIP(test.decimal)
-		expectedIP := net.ParseIP(test.expectedIP)
-
-		if !returnedIP.Equal(expectedIP) {
-			t.Fatalf(
-				"%v: unexpected decimal returned.\nexpected: %v, returned: %v",
-				index,
-				expectedIP,
-				returnedIP,
-			)
-		}
-	}
+	fmt.Println(firstNetwork.String())
+	fmt.Println(secondNetwork.String())
+	// Output:
+	// 10.4.0.0/17
+	// 10.4.128.0/17
 }
 
 // TestAdd tests the add function.
@@ -178,371 +94,6 @@ func TestAdd(t *testing.T) {
 				expectedIP,
 				returnedIP,
 			)
-		}
-	}
-}
-
-// TestSize tests the Size function.
-func TestSize(t *testing.T) {
-	tests := []struct {
-		mask         int
-		expectedSize int
-	}{
-		{
-			mask:         0,
-			expectedSize: 4294967296,
-		},
-		{
-			mask:         1,
-			expectedSize: 2147483648,
-		},
-		{
-			mask:         23,
-			expectedSize: 512,
-		},
-		{
-			mask:         24,
-			expectedSize: 256,
-		},
-		{
-			mask:         25,
-			expectedSize: 128,
-		},
-		{
-			mask:         31,
-			expectedSize: 2,
-		},
-		{
-			mask:         32,
-			expectedSize: 1,
-		},
-	}
-
-	for index, test := range tests {
-		returnedSize := size(net.CIDRMask(test.mask, 32))
-
-		if returnedSize != test.expectedSize {
-			t.Fatalf(
-				"%v: unexpected size returned.\nexpected: %v, returned: %v",
-				index,
-				test.expectedSize,
-				returnedSize,
-			)
-		}
-	}
-}
-
-// TestNewIPRange tests the newIPRange function.
-func TestNewIPRange(t *testing.T) {
-	tests := []struct {
-		network         string
-		expectedIPRange ipRange
-	}{
-		{
-			network: "0.0.0.0/0",
-			expectedIPRange: ipRange{
-				start: net.ParseIP("0.0.0.0").To4(),
-				end:   net.ParseIP("255.255.255.255").To4(),
-			},
-		},
-
-		{
-			network: "10.4.0.0/8",
-			expectedIPRange: ipRange{
-				start: net.ParseIP("10.0.0.0").To4(),
-				end:   net.ParseIP("10.255.255.255").To4(),
-			},
-		},
-
-		{
-			network: "10.4.0.0/16",
-			expectedIPRange: ipRange{
-				start: net.ParseIP("10.4.0.0").To4(),
-				end:   net.ParseIP("10.4.255.255").To4(),
-			},
-		},
-
-		{
-			network: "10.4.0.0/24",
-			expectedIPRange: ipRange{
-				start: net.ParseIP("10.4.0.0").To4(),
-				end:   net.ParseIP("10.4.0.255").To4(),
-			},
-		},
-
-		{
-			network: "172.168.0.0/25",
-			expectedIPRange: ipRange{
-				start: net.ParseIP("172.168.0.0").To4(),
-				end:   net.ParseIP("172.168.0.127").To4(),
-			},
-		},
-	}
-
-	for index, test := range tests {
-		_, network, _ := net.ParseCIDR(test.network)
-		ipRange := newIPRange(*network)
-
-		if !reflect.DeepEqual(ipRange, test.expectedIPRange) {
-			t.Fatalf(
-				"%v: unexpected ipRange returned.\nexpected: %#v\nreturned: %#v\n",
-				index,
-				test.expectedIPRange,
-				ipRange,
-			)
-		}
-	}
-}
-
-// TestFreeIPRanges tests the freeIPRanges function.
-func TestFreeIPRanges(t *testing.T) {
-	tests := []struct {
-		network              string
-		subnets              []string
-		expectedFreeIPRanges []ipRange
-		expectedErrorHandler func(error) bool
-	}{
-		// Test that given a network with no subnets,
-		// the entire network is returned as a free range.
-		{
-			network: "10.4.0.0/16",
-			subnets: []string{},
-			expectedFreeIPRanges: []ipRange{
-				ipRange{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-		},
-
-		// Test that given a network, and one subnet at the start of the network,
-		// the entire remaining network - that is, the network minus the subnet,
-		// is returned as a free range.
-		{
-			network: "10.4.0.0/16",
-			subnets: []string{"10.4.0.0/24"},
-			expectedFreeIPRanges: []ipRange{
-				ipRange{
-					start: net.ParseIP("10.4.1.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-		},
-
-		// Test that given a network, and two contiguous subnets,
-		// the entire remaining network (afterwards) is returned as a free range.
-		{
-			network: "10.4.0.0/16",
-			subnets: []string{"10.4.0.0/24", "10.4.1.0/24"},
-			expectedFreeIPRanges: []ipRange{
-				ipRange{
-					start: net.ParseIP("10.4.2.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-		},
-
-		// Test that given a network, and one fragmented subnet,
-		// the two remaining free ranges are returned as free.
-		{
-			network: "10.4.0.0/16",
-			subnets: []string{"10.4.1.0/24"},
-			expectedFreeIPRanges: []ipRange{
-				ipRange{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.0.255"),
-				},
-				ipRange{
-					start: net.ParseIP("10.4.2.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-		},
-
-		// Test that given a network, and three fragmented subnets,
-		// the 4 remaining free ranges are returned as free.
-		{
-			network: "10.4.0.0/16",
-			subnets: []string{
-				"10.4.10.0/24",
-				"10.4.12.0/24",
-				"10.4.14.0/24",
-			},
-			expectedFreeIPRanges: []ipRange{
-				ipRange{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.9.255"),
-				},
-				ipRange{
-					start: net.ParseIP("10.4.11.0"),
-					end:   net.ParseIP("10.4.11.255"),
-				},
-				ipRange{
-					start: net.ParseIP("10.4.13.0"),
-					end:   net.ParseIP("10.4.13.255"),
-				},
-				ipRange{
-					start: net.ParseIP("10.4.15.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-		},
-	}
-
-	for index, test := range tests {
-		_, network, err := net.ParseCIDR(test.network)
-		if err != nil {
-			t.Fatalf("%v: could not parse cidr: %v", index, test.network)
-		}
-
-		subnets := []net.IPNet{}
-		for _, subnetString := range test.subnets {
-			_, subnet, err := net.ParseCIDR(subnetString)
-			if err != nil {
-				t.Fatalf("%v: could not parse cidr: %v", index, subnetString)
-			}
-
-			subnets = append(subnets, *subnet)
-		}
-
-		freeSubnets, err := freeIPRanges(*network, subnets)
-
-		if err != nil {
-			if test.expectedErrorHandler == nil {
-				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
-			}
-			if !test.expectedErrorHandler(err) {
-				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
-			}
-		} else {
-			if test.expectedErrorHandler != nil {
-				t.Fatalf("%v: expected error not returned.", index)
-			}
-
-			if !ipRangesEqual(freeSubnets, test.expectedFreeIPRanges) {
-				t.Fatalf(
-					"%v: unexpected free subnets returned.\nexpected: %v\nreturned: %v",
-					index,
-					test.expectedFreeIPRanges,
-					freeSubnets,
-				)
-			}
-		}
-	}
-}
-
-// TestSpace tests the space function.
-func TestSpace(t *testing.T) {
-	tests := []struct {
-		freeIPRanges         []ipRange
-		mask                 int
-		expectedIP           net.IP
-		expectedErrorHandler func(error) bool
-	}{
-		// Test a case of fitting a network into an unused network.
-		{
-			freeIPRanges: []ipRange{
-				{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-			mask:       24,
-			expectedIP: net.ParseIP("10.4.0.0"),
-		},
-
-		// Test fitting a network into a network, with one subnet,
-		// at the start of the range.
-		{
-			freeIPRanges: []ipRange{
-				{
-					start: net.ParseIP("10.4.1.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-			mask:       24,
-			expectedIP: net.ParseIP("10.4.1.0"),
-		},
-
-		// Test adding a network that fills the range
-		{
-			freeIPRanges: []ipRange{
-				{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-			mask:       16,
-			expectedIP: net.ParseIP("10.4.0.0"),
-		},
-
-		// Test adding a network that is too large.
-		{
-			freeIPRanges: []ipRange{
-				{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-			mask:                 15,
-			expectedErrorHandler: IsSpaceExhausted,
-		},
-
-		// Test adding a slightly larger network,
-		// given a smaller, non-contiguous subnet.
-		{
-			freeIPRanges: []ipRange{
-				{
-					start: net.ParseIP("10.4.0.0"),
-					end:   net.ParseIP("10.4.0.255"),
-				},
-				{
-					start: net.ParseIP("10.4.2.0"),
-					end:   net.ParseIP("10.4.255.255"),
-				},
-			},
-			mask:       23,
-			expectedIP: net.ParseIP("10.4.2.0"),
-		},
-
-		// Test allocating /24 network when the first free range starts from /26.
-		{
-			freeIPRanges: []ipRange{
-				{
-					start: net.ParseIP("10.1.2.192"),
-					end:   net.ParseIP("10.1.255.255"),
-				},
-			},
-			mask:       24,
-			expectedIP: net.ParseIP("10.1.3.0"),
-		},
-	}
-
-	for index, test := range tests {
-		mask := net.CIDRMask(test.mask, 32)
-
-		ip, err := space(test.freeIPRanges, mask)
-
-		if err != nil {
-			if test.expectedErrorHandler == nil {
-				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
-			}
-			if !test.expectedErrorHandler(err) {
-				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
-			}
-		} else {
-			if test.expectedErrorHandler != nil {
-				t.Fatalf("%v: expected error not returned.", index)
-			}
-
-			if !ip.Equal(test.expectedIP) {
-				t.Fatalf(
-					"%v: unexpected ip returned. \nexpected: %v\nreturned: %v",
-					index,
-					test.expectedIP,
-					ip,
-				)
-			}
 		}
 	}
 }
@@ -621,6 +172,241 @@ func TestContains(t *testing.T) {
 				t.Errorf("expected contains = %v, got %v", contains, tc.expectedContains)
 			}
 		})
+	}
+}
+
+func Test_CanonicalizeSubnets(t *testing.T) {
+	testCases := []struct {
+		name            string
+		network         net.IPNet
+		subnets         []net.IPNet
+		expectedSubnets []net.IPNet
+	}{
+		{
+			name:            "case 0: deduplicate empty list of subnets",
+			network:         mustParseCIDR("192.168.0.0/16"),
+			subnets:         []net.IPNet{},
+			expectedSubnets: []net.IPNet{},
+		},
+		{
+			name:    "case 1: deduplicate list of subnets with one element",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.2.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.2.0/24"),
+			},
+		},
+		{
+			name:    "case 2: deduplicate list of subnets with two non-overlapping elements",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+			},
+		},
+		{
+			name:    "case 3: deduplicate list of subnets with two overlapping elements",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.1.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+			},
+		},
+		{
+			name:    "case 4: deduplicate list of subnets with four elements where two overlap",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+		},
+		{
+			name:    "case 5: same as case 4 but with different order",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+		},
+		{
+			name:    "case 6: same as case 4 but with different order",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+		},
+		{
+			name:    "case 7: same as case 4 but with different order",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+				mustParseCIDR("192.168.1.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+			},
+		},
+		{
+			name:    "case 7: deduplicate list of subnets with fiveelements where two overlap",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.4.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+				mustParseCIDR("192.168.4.0/24"),
+			},
+		},
+		{
+			name:    "case 8: deduplicate list of subnets with duplicates and IPs from different segments",
+			network: mustParseCIDR("192.168.0.0/16"),
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.4.0/24"),
+				mustParseCIDR("172.31.0.1/16"),
+				mustParseCIDR("10.2.0.4/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.1.0/24"),
+				mustParseCIDR("192.168.2.0/24"),
+				mustParseCIDR("192.168.3.0/24"),
+				mustParseCIDR("192.168.4.0/24"),
+			},
+		},
+		{
+			name:    "case 9: ensure that smaller overlapping subnets are accepted",
+			network: mustParseCIDR("10.0.0.0/8"),
+			subnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/16"),
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/16"),
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+			},
+		},
+		{
+			name:    "case 10: same as case 9 but with different input ordering",
+			network: mustParseCIDR("10.0.0.0/8"),
+			subnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+				mustParseCIDR("10.1.0.0/16"),
+			},
+			expectedSubnets: []net.IPNet{
+				mustParseCIDR("10.1.0.0/24"),
+				mustParseCIDR("10.1.1.0/24"),
+				mustParseCIDR("10.1.0.0/16"),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			subnets := CanonicalizeSubnets(tc.network, tc.subnets)
+
+			if !reflect.DeepEqual(subnets, tc.expectedSubnets) {
+				msg := "expected: {\n"
+				for _, n := range tc.expectedSubnets {
+					msg += fmt.Sprintf("\t%s,\n", n.String())
+				}
+				msg += "}\n\ngot: {\n"
+				for _, n := range subnets {
+					msg += fmt.Sprintf("\t%s,\n", n.String())
+				}
+				msg += "}"
+				t.Fatal(msg)
+			}
+		})
+	}
+}
+
+// TestDecimalToIP tests the decimalToIP function.
+func TestDecimalToIP(t *testing.T) {
+	tests := []struct {
+		decimal    int
+		expectedIP string
+	}{
+		{
+			decimal:    0,
+			expectedIP: "0.0.0.0",
+		},
+		{
+			decimal:    1283,
+			expectedIP: "0.0.5.3",
+		},
+		{
+			decimal:    167772160,
+			expectedIP: "10.0.0.0",
+		},
+		{
+			decimal:    168034304,
+			expectedIP: "10.4.0.0",
+		},
+		{
+			decimal:    4294967295,
+			expectedIP: "255.255.255.255",
+		},
+	}
+
+	for index, test := range tests {
+		returnedIP := decimalToIP(test.decimal)
+		expectedIP := net.ParseIP(test.expectedIP)
+
+		if !returnedIP.Equal(expectedIP) {
+			t.Fatalf(
+				"%v: unexpected decimal returned.\nexpected: %v, returned: %v",
+				index,
+				expectedIP,
+				returnedIP,
+			)
+		}
 	}
 }
 
@@ -849,21 +635,141 @@ func TestFree(t *testing.T) {
 	}
 }
 
-func ExampleFree() {
-	_, network, _ := net.ParseCIDR("10.4.0.0/16")
+// TestFreeIPRanges tests the freeIPRanges function.
+func TestFreeIPRanges(t *testing.T) {
+	tests := []struct {
+		network              string
+		subnets              []string
+		expectedFreeIPRanges []ipRange
+		expectedErrorHandler func(error) bool
+	}{
+		// Test that given a network with no subnets,
+		// the entire network is returned as a free range.
+		{
+			network: "10.4.0.0/16",
+			subnets: []string{},
+			expectedFreeIPRanges: []ipRange{
+				ipRange{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+		},
 
-	firstSubnet, _ := Free(*network, net.CIDRMask(24, 32), []net.IPNet{})
-	fmt.Println(firstSubnet.String())
+		// Test that given a network, and one subnet at the start of the network,
+		// the entire remaining network - that is, the network minus the subnet,
+		// is returned as a free range.
+		{
+			network: "10.4.0.0/16",
+			subnets: []string{"10.4.0.0/24"},
+			expectedFreeIPRanges: []ipRange{
+				ipRange{
+					start: net.ParseIP("10.4.1.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+		},
 
-	secondSubnet, _ := Free(*network, net.CIDRMask(28, 32), []net.IPNet{firstSubnet})
-	fmt.Println(secondSubnet.String())
+		// Test that given a network, and two contiguous subnets,
+		// the entire remaining network (afterwards) is returned as a free range.
+		{
+			network: "10.4.0.0/16",
+			subnets: []string{"10.4.0.0/24", "10.4.1.0/24"},
+			expectedFreeIPRanges: []ipRange{
+				ipRange{
+					start: net.ParseIP("10.4.2.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+		},
 
-	thirdSubnet, _ := Free(*network, net.CIDRMask(24, 32), []net.IPNet{firstSubnet, secondSubnet})
-	fmt.Println(thirdSubnet.String())
-	// Output:
-	// 10.4.0.0/24
-	// 10.4.1.0/28
-	// 10.4.2.0/24
+		// Test that given a network, and one fragmented subnet,
+		// the two remaining free ranges are returned as free.
+		{
+			network: "10.4.0.0/16",
+			subnets: []string{"10.4.1.0/24"},
+			expectedFreeIPRanges: []ipRange{
+				ipRange{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.0.255"),
+				},
+				ipRange{
+					start: net.ParseIP("10.4.2.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+		},
+
+		// Test that given a network, and three fragmented subnets,
+		// the 4 remaining free ranges are returned as free.
+		{
+			network: "10.4.0.0/16",
+			subnets: []string{
+				"10.4.10.0/24",
+				"10.4.12.0/24",
+				"10.4.14.0/24",
+			},
+			expectedFreeIPRanges: []ipRange{
+				ipRange{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.9.255"),
+				},
+				ipRange{
+					start: net.ParseIP("10.4.11.0"),
+					end:   net.ParseIP("10.4.11.255"),
+				},
+				ipRange{
+					start: net.ParseIP("10.4.13.0"),
+					end:   net.ParseIP("10.4.13.255"),
+				},
+				ipRange{
+					start: net.ParseIP("10.4.15.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+		},
+	}
+
+	for index, test := range tests {
+		_, network, err := net.ParseCIDR(test.network)
+		if err != nil {
+			t.Fatalf("%v: could not parse cidr: %v", index, test.network)
+		}
+
+		subnets := []net.IPNet{}
+		for _, subnetString := range test.subnets {
+			_, subnet, err := net.ParseCIDR(subnetString)
+			if err != nil {
+				t.Fatalf("%v: could not parse cidr: %v", index, subnetString)
+			}
+
+			subnets = append(subnets, *subnet)
+		}
+
+		freeSubnets, err := freeIPRanges(*network, subnets)
+
+		if err != nil {
+			if test.expectedErrorHandler == nil {
+				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
+			}
+			if !test.expectedErrorHandler(err) {
+				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
+			}
+		} else {
+			if test.expectedErrorHandler != nil {
+				t.Fatalf("%v: expected error not returned.", index)
+			}
+
+			if !ipRangesEqual(freeSubnets, test.expectedFreeIPRanges) {
+				t.Fatalf(
+					"%v: unexpected free subnets returned.\nexpected: %v\nreturned: %v",
+					index,
+					test.expectedFreeIPRanges,
+					freeSubnets,
+				)
+			}
+		}
+	}
 }
 
 func TestHalf(t *testing.T) {
@@ -920,208 +826,277 @@ func TestHalf(t *testing.T) {
 	}
 }
 
-func ExampleHalf() {
-	_, network, _ := net.ParseCIDR("10.4.0.0/16")
-
-	firstNetwork, secondNetwork, _ := Half(*network)
-
-	fmt.Println(firstNetwork.String())
-	fmt.Println(secondNetwork.String())
-	// Output:
-	// 10.4.0.0/17
-	// 10.4.128.0/17
-
-}
-
-func Test_CanonicalizeSubnets(t *testing.T) {
-	testCases := []struct {
-		name            string
-		network         net.IPNet
-		subnets         []net.IPNet
-		expectedSubnets []net.IPNet
+// TestIPToDecimal tests the ipToDecimal function.
+func TestIPToDecimal(t *testing.T) {
+	tests := []struct {
+		ip              string
+		expectedDecimal int
 	}{
 		{
-			name:            "case 0: deduplicate empty list of subnets",
-			network:         mustParseCIDR("192.168.0.0/16"),
-			subnets:         []net.IPNet{},
-			expectedSubnets: []net.IPNet{},
+			ip:              "0.0.0.0",
+			expectedDecimal: 0,
 		},
 		{
-			name:    "case 1: deduplicate list of subnets with one element",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.2.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.2.0/24"),
-			},
+			ip:              "0.0.05.3",
+			expectedDecimal: 1283,
 		},
 		{
-			name:    "case 2: deduplicate list of subnets with two non-overlapping elements",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-			},
+			ip:              "0.0.5.3",
+			expectedDecimal: 1283,
 		},
 		{
-			name:    "case 3: deduplicate list of subnets with two overlapping elements",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.1.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-			},
+			ip:              "10.0.0.0",
+			expectedDecimal: 167772160,
 		},
 		{
-			name:    "case 4: deduplicate list of subnets with four elements where two overlap",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-			},
+			ip:              "10.4.0.0",
+			expectedDecimal: 168034304,
 		},
 		{
-			name:    "case 5: same as case 4 but with different order",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
+			ip:              "255.255.255.255",
+			expectedDecimal: 4294967295,
+		},
+	}
+
+	for index, test := range tests {
+		returnedDecimal := ipToDecimal(net.ParseIP(test.ip))
+
+		if returnedDecimal != test.expectedDecimal {
+			t.Fatalf(
+				"%v: unexpected decimal returned.\nexpected: %v, returned: %v",
+				index,
+				test.expectedDecimal,
+				returnedDecimal,
+			)
+		}
+	}
+}
+
+// TestNewIPRange tests the newIPRange function.
+func TestNewIPRange(t *testing.T) {
+	tests := []struct {
+		network         string
+		expectedIPRange ipRange
+	}{
+		{
+			network: "0.0.0.0/0",
+			expectedIPRange: ipRange{
+				start: net.ParseIP("0.0.0.0").To4(),
+				end:   net.ParseIP("255.255.255.255").To4(),
 			},
 		},
+
 		{
-			name:    "case 6: same as case 4 but with different order",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
+			network: "10.4.0.0/8",
+			expectedIPRange: ipRange{
+				start: net.ParseIP("10.0.0.0").To4(),
+				end:   net.ParseIP("10.255.255.255").To4(),
 			},
 		},
+
 		{
-			name:    "case 7: same as case 4 but with different order",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-				mustParseCIDR("192.168.1.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
+			network: "10.4.0.0/16",
+			expectedIPRange: ipRange{
+				start: net.ParseIP("10.4.0.0").To4(),
+				end:   net.ParseIP("10.4.255.255").To4(),
 			},
 		},
+
 		{
-			name:    "case 7: deduplicate list of subnets with fiveelements where two overlap",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.4.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-				mustParseCIDR("192.168.4.0/24"),
+			network: "10.4.0.0/24",
+			expectedIPRange: ipRange{
+				start: net.ParseIP("10.4.0.0").To4(),
+				end:   net.ParseIP("10.4.0.255").To4(),
 			},
 		},
+
 		{
-			name:    "case 8: deduplicate list of subnets with duplicates and IPs from different segments",
-			network: mustParseCIDR("192.168.0.0/16"),
-			subnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.4.0/24"),
-				mustParseCIDR("172.31.0.1/16"),
-				mustParseCIDR("10.2.0.4/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("192.168.1.0/24"),
-				mustParseCIDR("192.168.2.0/24"),
-				mustParseCIDR("192.168.3.0/24"),
-				mustParseCIDR("192.168.4.0/24"),
-			},
-		},
-		{
-			name:    "case 9: ensure that smaller overlapping subnets are accepted",
-			network: mustParseCIDR("10.0.0.0/8"),
-			subnets: []net.IPNet{
-				mustParseCIDR("10.1.0.0/16"),
-				mustParseCIDR("10.1.0.0/24"),
-				mustParseCIDR("10.1.1.0/24"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("10.1.0.0/16"),
-				mustParseCIDR("10.1.0.0/24"),
-				mustParseCIDR("10.1.1.0/24"),
-			},
-		},
-		{
-			name:    "case 10: same as case 9 but with different input ordering",
-			network: mustParseCIDR("10.0.0.0/8"),
-			subnets: []net.IPNet{
-				mustParseCIDR("10.1.0.0/24"),
-				mustParseCIDR("10.1.1.0/24"),
-				mustParseCIDR("10.1.0.0/16"),
-			},
-			expectedSubnets: []net.IPNet{
-				mustParseCIDR("10.1.0.0/24"),
-				mustParseCIDR("10.1.1.0/24"),
-				mustParseCIDR("10.1.0.0/16"),
+			network: "172.168.0.0/25",
+			expectedIPRange: ipRange{
+				start: net.ParseIP("172.168.0.0").To4(),
+				end:   net.ParseIP("172.168.0.127").To4(),
 			},
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			subnets := CanonicalizeSubnets(tc.network, tc.subnets)
+	for index, test := range tests {
+		_, network, _ := net.ParseCIDR(test.network)
+		ipRange := newIPRange(*network)
 
-			if !reflect.DeepEqual(subnets, tc.expectedSubnets) {
-				msg := "expected: {\n"
-				for _, n := range tc.expectedSubnets {
-					msg += fmt.Sprintf("\t%s,\n", n.String())
-				}
-				msg += "}\n\ngot: {\n"
-				for _, n := range subnets {
-					msg += fmt.Sprintf("\t%s,\n", n.String())
-				}
-				msg += "}"
-				t.Fatal(msg)
+		if !reflect.DeepEqual(ipRange, test.expectedIPRange) {
+			t.Fatalf(
+				"%v: unexpected ipRange returned.\nexpected: %#v\nreturned: %#v\n",
+				index,
+				test.expectedIPRange,
+				ipRange,
+			)
+		}
+	}
+}
+
+// TestSize tests the Size function.
+func TestSize(t *testing.T) {
+	tests := []struct {
+		mask         int
+		expectedSize int
+	}{
+		{
+			mask:         0,
+			expectedSize: 4294967296,
+		},
+		{
+			mask:         1,
+			expectedSize: 2147483648,
+		},
+		{
+			mask:         23,
+			expectedSize: 512,
+		},
+		{
+			mask:         24,
+			expectedSize: 256,
+		},
+		{
+			mask:         25,
+			expectedSize: 128,
+		},
+		{
+			mask:         31,
+			expectedSize: 2,
+		},
+		{
+			mask:         32,
+			expectedSize: 1,
+		},
+	}
+
+	for index, test := range tests {
+		returnedSize := size(net.CIDRMask(test.mask, 32))
+
+		if returnedSize != test.expectedSize {
+			t.Fatalf(
+				"%v: unexpected size returned.\nexpected: %v, returned: %v",
+				index,
+				test.expectedSize,
+				returnedSize,
+			)
+		}
+	}
+}
+
+// TestSpace tests the space function.
+func TestSpace(t *testing.T) {
+	tests := []struct {
+		freeIPRanges         []ipRange
+		mask                 int
+		expectedIP           net.IP
+		expectedErrorHandler func(error) bool
+	}{
+		// Test a case of fitting a network into an unused network.
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+			mask:       24,
+			expectedIP: net.ParseIP("10.4.0.0"),
+		},
+
+		// Test fitting a network into a network, with one subnet,
+		// at the start of the range.
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.4.1.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+			mask:       24,
+			expectedIP: net.ParseIP("10.4.1.0"),
+		},
+
+		// Test adding a network that fills the range
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+			mask:       16,
+			expectedIP: net.ParseIP("10.4.0.0"),
+		},
+
+		// Test adding a network that is too large.
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+			mask:                 15,
+			expectedErrorHandler: IsSpaceExhausted,
+		},
+
+		// Test adding a slightly larger network,
+		// given a smaller, non-contiguous subnet.
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.4.0.0"),
+					end:   net.ParseIP("10.4.0.255"),
+				},
+				{
+					start: net.ParseIP("10.4.2.0"),
+					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+			mask:       23,
+			expectedIP: net.ParseIP("10.4.2.0"),
+		},
+
+		// Test allocating /24 network when the first free range starts from /26.
+		{
+			freeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.1.2.192"),
+					end:   net.ParseIP("10.1.255.255"),
+				},
+			},
+			mask:       24,
+			expectedIP: net.ParseIP("10.1.3.0"),
+		},
+	}
+
+	for index, test := range tests {
+		mask := net.CIDRMask(test.mask, 32)
+
+		ip, err := space(test.freeIPRanges, mask)
+
+		if err != nil {
+			if test.expectedErrorHandler == nil {
+				t.Fatalf("%v: unexpected error returned.\nreturned: %v", index, err)
 			}
-		})
+			if !test.expectedErrorHandler(err) {
+				t.Fatalf("%v: incorrect error returned.\nreturned: %v", index, err)
+			}
+		} else {
+			if test.expectedErrorHandler != nil {
+				t.Fatalf("%v: expected error not returned.", index)
+			}
+
+			if !ip.Equal(test.expectedIP) {
+				t.Fatalf(
+					"%v: unexpected ip returned. \nexpected: %v\nreturned: %v",
+					index,
+					test.expectedIP,
+					ip,
+				)
+			}
+		}
 	}
 }
 
@@ -1132,4 +1107,28 @@ func mustParseCIDR(val string) net.IPNet {
 	}
 
 	return *n
+}
+
+// ipNetEqual returns true if the given IPNets refer to the same network.
+func ipNetEqual(a, b net.IPNet) bool {
+	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
+}
+
+// ipRangesEqual returns true if both given ipRanges are equal, false otherwise.
+func ipRangesEqual(a, b []ipRange) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := 0; i < len(a); i++ {
+		if !a[i].start.Equal(b[i].start) {
+			return false
+		}
+
+		if !a[i].end.Equal(b[i].end) {
+			return false
+		}
+	}
+
+	return true
 }
