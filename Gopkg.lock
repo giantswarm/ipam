@@ -10,16 +10,15 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:612ce4bc875c67e8d372a12b4b432dd55dfdaf3bc0268e808192bad4a02a5ebf"
+  digest = "1:701a5f5a7297ced0c7b9aeeba6a40ef47663b956d56e7acd09fe0d1c31eb1e4b"
   name = "github.com/giantswarm/microerror"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f446cc816a48d6626ddce3ecd966c8b6be3a1985"
+  revision = "e8fe0fa9c0097ca80d8b773e1d728843447f9233"
+  version = "v0.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:047e48867757c422d50bbd19c1ef1bf8ef6524c31c9a725445ab05ac6b1aa697"
+  digest = "1:41d1b632c13673bb212ad04cff9e4b5e1b63f3e11e38820eb63aa9dd1372236e"
   name = "github.com/giantswarm/micrologger"
   packages = [
     ".",
@@ -27,18 +26,19 @@
     "microloggertest",
   ]
   pruneopts = "UT"
-  revision = "0926d9b7c5419173936b4556411a103bdf8d5966"
+  revision = "8e1231da831530e810c93a69bee4d84da2f7e9c5"
+  version = "v0.2.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:da6cbd52d8b4c4acdd496c017e96d5d349d2a74171f79a4ea16ae0971a33e31d"
+  digest = "1:e005a894fe55f1bd63e3ed88a43a92c68898ac1ddc293f75de2d7855d078763e"
   name = "github.com/giantswarm/microstorage"
   packages = [
     ".",
     "memory",
   ]
   pruneopts = "UT"
-  revision = "5a0784e0ee23c5b732c0d15023ac3dce8aef145a"
+  revision = "c6b8c5a2929cc79545cec6e6fb9509d858cf3d05"
 
 [[projects]]
   digest = "1:0cfcded8689c2c964c223650009c5dd9e283c22d57f18f2335aafa16cc22acf1"
