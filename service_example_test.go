@@ -40,7 +40,7 @@ func Example() {
 
 	// Release the first subnet from the service.
 	// This makes the IP range available for future operations.
-	service.DeleteSubnet(ctx, firstNetwork)
+	_ = service.DeleteSubnet(ctx, firstNetwork)
 
 	// Request a third subnet.
 	// As the range at the start of the network is free,

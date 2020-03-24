@@ -737,7 +737,7 @@ func TestFreeIPRanges(t *testing.T) {
 			network: "10.4.0.0/16",
 			subnets: []string{},
 			expectedFreeIPRanges: []ipRange{
-				ipRange{
+				{
 					start: net.ParseIP("10.4.0.0"),
 					end:   net.ParseIP("10.4.255.255"),
 				},
@@ -751,7 +751,7 @@ func TestFreeIPRanges(t *testing.T) {
 			network: "10.4.0.0/16",
 			subnets: []string{"10.4.0.0/24"},
 			expectedFreeIPRanges: []ipRange{
-				ipRange{
+				{
 					start: net.ParseIP("10.4.1.0"),
 					end:   net.ParseIP("10.4.255.255"),
 				},
@@ -764,7 +764,7 @@ func TestFreeIPRanges(t *testing.T) {
 			network: "10.4.0.0/16",
 			subnets: []string{"10.4.0.0/24", "10.4.1.0/24"},
 			expectedFreeIPRanges: []ipRange{
-				ipRange{
+				{
 					start: net.ParseIP("10.4.2.0"),
 					end:   net.ParseIP("10.4.255.255"),
 				},
@@ -777,11 +777,11 @@ func TestFreeIPRanges(t *testing.T) {
 			network: "10.4.0.0/16",
 			subnets: []string{"10.4.1.0/24"},
 			expectedFreeIPRanges: []ipRange{
-				ipRange{
+				{
 					start: net.ParseIP("10.4.0.0"),
 					end:   net.ParseIP("10.4.0.255"),
 				},
-				ipRange{
+				{
 					start: net.ParseIP("10.4.2.0"),
 					end:   net.ParseIP("10.4.255.255"),
 				},
@@ -798,19 +798,19 @@ func TestFreeIPRanges(t *testing.T) {
 				"10.4.14.0/24",
 			},
 			expectedFreeIPRanges: []ipRange{
-				ipRange{
+				{
 					start: net.ParseIP("10.4.0.0"),
 					end:   net.ParseIP("10.4.9.255"),
 				},
-				ipRange{
+				{
 					start: net.ParseIP("10.4.11.0"),
 					end:   net.ParseIP("10.4.11.255"),
 				},
-				ipRange{
+				{
 					start: net.ParseIP("10.4.13.0"),
 					end:   net.ParseIP("10.4.13.255"),
 				},
-				ipRange{
+				{
 					start: net.ParseIP("10.4.15.0"),
 					end:   net.ParseIP("10.4.255.255"),
 				},
