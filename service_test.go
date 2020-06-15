@@ -371,33 +371,6 @@ func TestNewWithAllocatedNetworks(t *testing.T) {
 
 			expectedSubnet: "10.0.0.0/24",
 		},
-
-		// Test that an error is returned when creating the IPAM service if
-		// the allocated subnet is too big.
-		{
-			network:          "10.0.0.0/24",
-			allocatedSubnets: []string{"10.0.0.0/23"},
-
-			expectedErrorHandler: IsInvalidConfig,
-		},
-
-		// Test that an error is returned when creating the IPAM service
-		// if any of the allocated subnets are too large.
-		{
-			network:          "10.0.0.0/16",
-			allocatedSubnets: []string{"10.0.0.0/24", "10.0.0.0/8"},
-
-			expectedErrorHandler: IsInvalidConfig,
-		},
-
-		// Test that an error is returned when creating the IPAM service
-		// if an allocated subnet does not belong to the network.
-		{
-			network:          "10.0.0.0/16",
-			allocatedSubnets: []string{"192.168.0.0/16"},
-
-			expectedErrorHandler: IsInvalidConfig,
-		},
 	}
 
 	for index, test := range tests {

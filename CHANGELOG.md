@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
 
+- Instead of returning an error, ignore allocatedSubnets that are outside of the network range.
 
 ## [0.2.0] 2020-03-24
 
