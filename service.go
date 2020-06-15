@@ -40,15 +40,12 @@ func New(config Config) (*Service, error) {
 	if config.Network == nil {
 		return nil, microerror.Maskf(invalidConfigError, "network must not be empty")
 	}
+
+	var overlappingAllocatedSubnets []net.IPNet
 	for _, allocatedSubnet := range config.AllocatedSubnets {
 		ipRange := newIPRange(allocatedSubnet)
-		if !(config.Network.Contains(ipRange.start) && config.Network.Contains(ipRange.end)) {
-			return nil, microerror.Maskf(
-				invalidConfigError,
-				"allocated subnet (%v) must be contained by network (%v)",
-				allocatedSubnet.String(),
-				config.Network.String(),
-			)
+		if config.Network.Contains(ipRange.start) && config.Network.Contains(ipRange.end) {
+			overlappingAllocatedSubnets = append(overlappingAllocatedSubnets, allocatedSubnet)
 		}
 	}
 
@@ -57,7 +54,7 @@ func New(config Config) (*Service, error) {
 		storage: config.Storage,
 
 		network:          *config.Network,
-		allocatedSubnets: config.AllocatedSubnets,
+		allocatedSubnets: overlappingAllocatedSubnets,
 	}
 
 	return newService, nil
