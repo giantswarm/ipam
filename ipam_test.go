@@ -441,11 +441,11 @@ func Test_CanonicalizeSubnets(t *testing.T) {
 			subnets := CanonicalizeSubnets(tc.network, tc.subnets)
 
 			if !reflect.DeepEqual(subnets, tc.expectedSubnets) {
-				msg := "expected: {\n"
+				msg := "subnets expected: {\n"
 				for _, n := range tc.expectedSubnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
-				msg += "}\n\ngot: {\n"
+				msg += "}\n\ngot subnets: {\n"
 				for _, n := range subnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
@@ -1557,8 +1557,7 @@ func Test_RemoveDuplicateSubnets(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			var uniqueSubnets []net.IPNet
-			uniqueSubnets = removeDuplicateSubnets(tc.subnets)
+			var uniqueSubnets []net.IPNet = removeDuplicateSubnets(tc.subnets)
 
 			if !reflect.DeepEqual(uniqueSubnets, tc.expectedSortedSubnets) {
 				msg := "expected: {\n"
