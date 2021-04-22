@@ -1452,11 +1452,11 @@ func Test_Split(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(subnets, tc.expectedSubnets) {
-				msg := "expected: {\n"
+				msg := "expected subs: {\n"
 				for _, n := range tc.expectedSubnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
-				msg += "}\n\ngot: {\n"
+				msg += "}\n\ngot subs: {\n"
 				for _, n := range subnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
