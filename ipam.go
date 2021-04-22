@@ -194,11 +194,39 @@ func decimalToIP(ip int) net.IP {
 	return t
 }
 
+// removeDuplicateSubnets takes a list of subnets.
+// It will remove subnets that are included in other CIDRs in the list
+func removeDuplicateSubnets(subnets []net.IPNet) []net.IPNet {
+
+	var uniqueSubnets []net.IPNet
+
+	for _, currentSubnet := range subnets {
+		var isSubnetIncluded bool
+
+		// Check if current subnet is a subset of any other subnet in the list
+		for _, othersubnet := range subnets {
+			if !reflect.DeepEqual(currentSubnet, othersubnet) && Contains(othersubnet, currentSubnet) {
+				isSubnetIncluded = true
+				break
+			}
+		}
+
+		//If the subnet is not a subset, we add it to the output list
+		if !isSubnetIncluded {
+			uniqueSubnets = append(uniqueSubnets, currentSubnet)
+		}
+	}
+
+	return uniqueSubnets
+}
+
 // freeIPRanges takes a network, and a list of subnets.
 // It calculates available IPRanges, within the original network.
 func freeIPRanges(network net.IPNet, subnets []net.IPNet) ([]ipRange, error) {
 	freeSubnets := []ipRange{}
 	networkRange := newIPRange(network)
+
+	subnets = removeDuplicateSubnets(subnets)
 
 	if len(subnets) == 0 {
 		freeSubnets = append(freeSubnets, networkRange)

@@ -17,8 +17,13 @@ func (s ipNets) Len() int {
 	return len(s)
 }
 
+// Tuntion used to order nets, IP is checked first then Mask in case IP is the same
 func (s ipNets) Less(i, j int) bool {
-	return ipToDecimal(s[i].IP) < ipToDecimal(s[j].IP)
+	if ipToDecimal(s[i].IP) == ipToDecimal(s[j].IP) {
+		return size(s[i].Mask) > size(s[j].Mask)
+	} else {
+		return ipToDecimal(s[i].IP) < ipToDecimal(s[j].IP)
+	}
 }
 
 func (s ipNets) Swap(i, j int) {
