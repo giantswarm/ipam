@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] 2021-04-22
 
+### Changed
+
+- Improve network sorting function to use the mask.
+
+### Fixed
+
+- Remove duplicate subnets on freeIPRanges.
 
 ## [0.2.0] 2020-03-24
 

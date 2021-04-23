@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -440,11 +441,11 @@ func Test_CanonicalizeSubnets(t *testing.T) {
 			subnets := CanonicalizeSubnets(tc.network, tc.subnets)
 
 			if !reflect.DeepEqual(subnets, tc.expectedSubnets) {
-				msg := "expected: {\n"
+				msg := "subnets expected: {\n"
 				for _, n := range tc.expectedSubnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
-				msg += "}\n\ngot: {\n"
+				msg += "}\n\ngot subnets: {\n"
 				for _, n := range subnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
@@ -670,6 +671,184 @@ func TestFree(t *testing.T) {
 			expectedErrorHandler: nil,
 			expectedNetwork:      "10.1.3.0/24",
 		},
+		{
+			network: "10.163.0.0/16",
+			mask:    23,
+			subnets: []string{
+				"10.163.0.0/23",
+				"10.163.0.0/25",
+				"10.163.0.128/25",
+				"10.163.1.0/25",
+				"10.163.2.0/25",
+				"10.163.2.0/23",
+				"10.163.2.128/25",
+				"10.163.3.0/25",
+				"10.163.4.0/22",
+				"10.163.4.0/25",
+				"10.163.4.128/25",
+				"10.163.5.0/25",
+				"10.163.5.128/25",
+				"10.163.6.0/25",
+				"10.163.6.128/25",
+				"10.163.8.0/25",
+				"10.163.8.0/22",
+				"10.163.8.128/25",
+				"10.163.9.0/25",
+				"10.163.9.128/25",
+				"10.163.10.0/25",
+				"10.163.10.128/25",
+				"10.163.12.0/23",
+				"10.163.12.0/25",
+				"10.163.12.128/25",
+				"10.163.13.0/25",
+				"10.163.14.0/23",
+				"10.163.14.0/25",
+				"10.163.14.128/25",
+				"10.163.15.0/25",
+				"10.163.16.0/25",
+				"10.163.16.0/22",
+				"10.163.16.128/25",
+				"10.163.17.0/25",
+				"10.163.17.128/25",
+				"10.163.18.0/25",
+				"10.163.18.128/25",
+				"10.163.20.0/22",
+				"10.163.20.0/24",
+				"10.163.21.0/24",
+				"10.163.22.0/24",
+				"10.163.24.0/21",
+				"10.163.24.0/24",
+				"10.163.25.0/24",
+				"10.163.26.0/24",
+				"10.163.27.0/24",
+				"10.163.28.0/24",
+				"10.163.29.0/24",
+				"10.163.30.0/25",
+				"10.163.30.0/23",
+				"10.163.30.128/25",
+				"10.163.31.0/25",
+				"10.163.32.0/21",
+				"10.163.32.0/24",
+				"10.163.33.0/24",
+				"10.163.34.0/24",
+				"10.163.35.0/24",
+				"10.163.36.0/24",
+				"10.163.37.0/24",
+				"10.163.40.0/24",
+				"10.163.40.0/22",
+				"10.163.41.0/24",
+				"10.163.42.0/24",
+				"10.163.44.0/24",
+				"10.163.44.0/22",
+				"10.163.45.0/24",
+				"10.163.46.0/24",
+				"10.163.48.0/24",
+				"10.163.48.0/21",
+				"10.163.49.0/24",
+				"10.163.50.0/24",
+				"10.163.51.0/24",
+				"10.163.52.0/24",
+				"10.163.53.0/24",
+				"10.163.56.0/25",
+				"10.163.56.0/22",
+				"10.163.56.128/25",
+				"10.163.57.0/25",
+				"10.163.57.128/25",
+				"10.163.58.0/25",
+				"10.163.58.128/25",
+			},
+			expectedErrorHandler: nil,
+			expectedNetwork:      "10.163.60.0/23",
+		},
+		{
+			network: "10.163.0.0/16",
+			mask:    24,
+			subnets: []string{
+				"10.163.0.0/23",
+				"10.163.0.0/25",
+				"10.163.0.128/25",
+				"10.163.1.0/25",
+				"10.163.2.0/25",
+				"10.163.2.0/23",
+				"10.163.2.128/25",
+				"10.163.3.0/25",
+				"10.163.4.0/22",
+				"10.163.4.0/25",
+				"10.163.4.128/25",
+				"10.163.5.0/25",
+				"10.163.5.128/25",
+				"10.163.6.0/25",
+				"10.163.6.128/25",
+				"10.163.8.0/25",
+				"10.163.8.0/22",
+				"10.163.8.128/25",
+				"10.163.9.0/25",
+				"10.163.9.128/25",
+				"10.163.10.0/25",
+				"10.163.10.128/25",
+				"10.163.12.0/23",
+				"10.163.12.0/25",
+				"10.163.12.128/25",
+				"10.163.13.0/25",
+				"10.163.14.0/23",
+				"10.163.14.0/25",
+				"10.163.14.128/25",
+				"10.163.15.0/25",
+				"10.163.16.0/25",
+				"10.163.16.0/22",
+				"10.163.16.128/25",
+				"10.163.17.0/25",
+				"10.163.17.128/25",
+				"10.163.18.0/25",
+				"10.163.18.128/25",
+				"10.163.20.0/22",
+				"10.163.20.0/24",
+				"10.163.21.0/24",
+				"10.163.22.0/24",
+				"10.163.24.0/21",
+				"10.163.24.0/24",
+				"10.163.25.0/24",
+				"10.163.26.0/24",
+				"10.163.27.0/24",
+				"10.163.28.0/24",
+				"10.163.29.0/24",
+				"10.163.30.0/25",
+				"10.163.30.0/23",
+				"10.163.30.128/25",
+				"10.163.31.0/25",
+				"10.163.32.0/21",
+				"10.163.32.0/24",
+				"10.163.33.0/24",
+				"10.163.34.0/24",
+				"10.163.35.0/24",
+				"10.163.36.0/24",
+				"10.163.37.0/24",
+				"10.163.40.0/24",
+				"10.163.40.0/22",
+				"10.163.41.0/24",
+				"10.163.42.0/24",
+				"10.163.44.0/24",
+				"10.163.44.0/22",
+				"10.163.45.0/24",
+				"10.163.46.0/24",
+				"10.163.48.0/24",
+				"10.163.48.0/21",
+				"10.163.49.0/24",
+				"10.163.50.0/24",
+				"10.163.51.0/24",
+				"10.163.52.0/24",
+				"10.163.53.0/24",
+				"10.163.56.0/25",
+				"10.163.56.0/22",
+				"10.163.56.128/25",
+				"10.163.57.0/25",
+				"10.163.57.128/25",
+				"10.163.58.0/25",
+				"10.163.58.128/25",
+			},
+			expectedErrorHandler: nil,
+			expectedNetwork:      "10.163.60.0/24",
+		},
 	}
 
 	for index, test := range tests {
@@ -813,6 +992,31 @@ func TestFreeIPRanges(t *testing.T) {
 				{
 					start: net.ParseIP("10.4.15.0"),
 					end:   net.ParseIP("10.4.255.255"),
+				},
+			},
+		},
+		// Test that given multiple network ranges
+		{
+			network: "10.163.0.0/16",
+			subnets: []string{
+				"10.163.32.0/21",
+				"10.163.32.0/24",
+				"10.163.33.0/24",
+				"10.163.34.0/24",
+				"10.163.35.0/24",
+				"10.163.36.0/24",
+				"10.163.37.0/24",
+				"10.163.40.0/24",
+				"10.163.40.0/22",
+			},
+			expectedFreeIPRanges: []ipRange{
+				{
+					start: net.ParseIP("10.163.0.0"),
+					end:   net.ParseIP("10.163.31.255"),
+				},
+				{
+					start: net.ParseIP("10.163.44.0"),
+					end:   net.ParseIP("10.163.255.255"),
 				},
 			},
 		},
@@ -1248,12 +1452,120 @@ func Test_Split(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(subnets, tc.expectedSubnets) {
-				msg := "expected: {\n"
+				msg := "expected subs: {\n"
 				for _, n := range tc.expectedSubnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
-				msg += "}\n\ngot: {\n"
+				msg += "}\n\ngot subs: {\n"
 				for _, n := range subnets {
+					msg += fmt.Sprintf("\t%s,\n", n.String())
+				}
+				msg += "}"
+				t.Fatal(msg)
+
+			}
+		})
+	}
+}
+
+func Test_Sort(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		subnets               []net.IPNet
+		expectedSortedSubnets []net.IPNet
+	}{
+		{
+			name: "case 1: sort subnets",
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.9.0/24"),
+				mustParseCIDR("192.168.8.128/26"),
+				mustParseCIDR("192.168.8.0/26"),
+				mustParseCIDR("192.168.8.64/26"),
+			},
+			expectedSortedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.8.0/26"),
+				mustParseCIDR("192.168.8.64/26"),
+				mustParseCIDR("192.168.8.128/26"),
+				mustParseCIDR("192.168.9.0/24"),
+			},
+		},
+		{
+			name: "case 2: sort by mask",
+			subnets: []net.IPNet{
+				mustParseCIDR("192.168.8.0/26"),
+				mustParseCIDR("192.168.8.0/24"),
+			},
+			expectedSortedSubnets: []net.IPNet{
+				mustParseCIDR("192.168.8.0/24"),
+				mustParseCIDR("192.168.8.0/26"),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			sort.Sort(ipNets(tc.subnets))
+
+			if !reflect.DeepEqual(tc.subnets, tc.expectedSortedSubnets) {
+				msg := "expected: {\n"
+				for _, n := range tc.expectedSortedSubnets {
+					msg += fmt.Sprintf("\t%s,\n", n.String())
+				}
+				msg += "}\n\ngot: {\n"
+				for _, n := range tc.subnets {
+					msg += fmt.Sprintf("\t%s,\n", n.String())
+				}
+				msg += "}"
+				t.Fatal(msg)
+
+			}
+		})
+	}
+}
+
+func Test_RemoveDuplicateSubnets(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		subnets               []net.IPNet
+		expectedSortedSubnets []net.IPNet
+	}{
+		// {
+		// 	name: "case 1: sort subnets",
+		// 	subnets: []net.IPNet{
+		// 		mustParseCIDR("10.163.32.0/21"),
+		// 		mustParseCIDR("10.163.32.0/24"),
+		// 		mustParseCIDR("10.163.33.0/24"),
+		// 	},
+		// 	expectedSortedSubnets: []net.IPNet{
+		// 		mustParseCIDR("10.163.32.0/21"),
+		// 	},
+		// },
+		{
+			name: "case 2: sort subnets",
+			subnets: []net.IPNet{
+				mustParseCIDR("10.163.32.0/24"),
+				mustParseCIDR("10.163.34.0/24"),
+				mustParseCIDR("10.163.32.0/21"),
+			},
+			expectedSortedSubnets: []net.IPNet{
+				mustParseCIDR("10.163.32.0/21"),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			var uniqueSubnets []net.IPNet = removeDuplicateSubnets(tc.subnets)
+
+			if !reflect.DeepEqual(uniqueSubnets, tc.expectedSortedSubnets) {
+				msg := "expected: {\n"
+				for _, n := range tc.expectedSortedSubnets {
+					msg += fmt.Sprintf("\t%s,\n", n.String())
+				}
+				msg += "}\n\ngot: {\n"
+				for _, n := range uniqueSubnets {
 					msg += fmt.Sprintf("\t%s,\n", n.String())
 				}
 				msg += "}"
